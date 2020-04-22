@@ -86,10 +86,7 @@ func (st *svWindowState) AddTask(tr *TaskRef, tas []*TaskAssignment) {
 	if len(tas) == 0 {
 		st.wsc.SendStatusUpdate(tr.Task.Callback,&TaskStatus{
 			Ref: tr,
-			Result: TaskResult{
-				Ack: Failed,
-				Err: errors.Errorf("TaskSplitter returned no tasks"),
-			},
+			Result: errors.Errorf("TaskSplitter returned no tasks"),
 			Finished: true,
 		})
 	}
@@ -244,10 +241,7 @@ func (st *svWindowState) wSize() uint32 {
 }
 
 func initialStatus() TaskResult {
-	return TaskResult{
-		Ack: Pending,
-		Err: nil,
-	}
+	return nil
 }
 
 func (s *Supervisor) Start(wg *sync.WaitGroup) {

@@ -46,20 +46,20 @@ func (pb *PipelineBuilder) StartWithInbound(pe Element) *PipelineBuilder {
 
 func (pb *PipelineBuilder) StartWithProcessor(p Processor, id ElementId) *PipelineBuilder {
 	pb.steps = make([]Element, 1)
-	pb.steps[0] = NewWorker(p, pb.cfg, id)
+	pb.steps[0] = NewWorker(p, id)
 	return pb
 
 }
 
 func (pb *PipelineBuilder) ContinueWith(p Processor, id ElementId) *PipelineBuilder {
-	nw := NewWorker(p, pb.cfg, id)
+	nw := NewWorker(p, id)
 	pb.steps[len(pb.steps)-1].SetNextStep(nw)
 	pb.steps = append(pb.steps, nw)
 	return pb
 }
 
 func (pb *PipelineBuilder) EndWith(p Processor, id ElementId) *Pipeline {
-	nw := NewWorker(p, pb.cfg, id)
+	nw := NewWorker(p, id)
 	pb.steps[len(pb.steps)-1].SetNextStep(nw)
 	pSteps := make([]Element, len(pb.steps)+1)
 	for i, s := range pb.steps {

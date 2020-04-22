@@ -1,10 +1,12 @@
 package elements
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go"
+	"context"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/pkg/binding"
-	cehttp "github.com/cloudevents/sdk-go/pkg/cloudevents/transport/http"
-	"github.com/cloudevents/sdk-go/pkg/pipeline"
+	"github.com/cloudevents/sdk-go/v2/pipeline"
+	http2 "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -13,7 +15,7 @@ var _ pipeline.Processor = (*HttpSender)(nil)
 
 type HttpSender struct {
 	target    *url.URL
-	transport *cehttp.Transport
+	p http2.Protocol
 }
 
 func (s *HttpSender) Process(tr *pipeline.TaskRef) pipeline.TaskResult {
@@ -54,6 +56,19 @@ func (s *HttpSender) Process(tr *pipeline.TaskRef) pipeline.TaskResult {
 }
 
 func NewHttpSender(target string, encoding cehttp.Encoding, client *http.Client) (*HttpSender, error) {
+	ctx := cloudevents.Context(context.Background())
+
+	p, err := cloudevents.NewHTTP( http2.WithTarget(target))
+	if err != nil {
+		log.Fatalf("failed to create protocol: %s", err.Error())
+	}
+
+	c, err := cloudevents.NewClient(p, cloudevents.WithTimeNow(), cloudevents.WithUUIDs())
+	if err != nil {
+		log.Fatalf("failed to create client, %v", err)
+	}
+
+
 	transport, err := cloudevents.NewHTTPTransport(
 		cloudevents.WithTarget(target),
 		cloudevents.WithEncoding(encoding),

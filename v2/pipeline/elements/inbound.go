@@ -2,11 +2,10 @@ package elements
 
 import (
 	"context"
-	"github.com/cloudevents/sdk-go/pkg/pipeline"
-	"github.com/cloudevents/sdk-go/pkg/pipeline/config"
+	v2 "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/pipeline"
 
-
-	ceamqp "github.com/cloudevents/sdk-go/pkg/bindings/amqp"
+	ceamqp "github.com/cloudevents/sdk-go/v2/protocol/amqp"
 
 	"math"
 	"pack.ag/amqp"
@@ -14,36 +13,25 @@ import (
 	"time"
 )
 
-type AMQPRouterSelector struct {
-}
-
-func (ars *AMQPRouterSelector) StartRunners() {
-	panic("implement me")
-}
-
-func (ars *AMQPRouterSelector) StopRunners() {
-	panic("implement me")
-}
-
-func (ars *AMQPRouterSelector) Split(origin *pipeline.Task, callback chan *pipeline.TaskStatus) []*pipeline.TaskAssignment {
-	return nil
+type InboundHandler interface {
+	HandleResult(ts *pipeline.TaskStatus) error
+	ReceiveTask(ctx context.Context) (*pipeline.TaskRef,error)
 }
 
 // We might create a more general InboundProcessor interface later and make this an
 // AMQP specific implementation of it.
 type Inbound struct {
-	id      pipeline.PipelineElementId
-	conf    *config.Config
-	link    *amqp.Receiver
+	id      pipeline.ElementId
 	ws      uint32
 	counter uint32
 	results chan *pipeline.TaskStatus
 	runner  pipeline.Runner
-	ctx     context.Context
 	errc    chan error
+	ih 		InboundHandler
+	ctx		context.Context
 }
 
-func (i *Inbound) Id() pipeline.PipelineElementId {
+func (i *Inbound) Id() pipeline.ElementId {
 	return i.id
 }
 
@@ -65,21 +53,7 @@ func (i *Inbound) Start(wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 		for sMsg := range i.results {
-			m := sMsg.Ref.Task.Msg.(*amqp.Message)
-			switch sMsg.Result.Ack {
-			case pipeline.Failed:
-				_ = m.Reject(&amqp.Error{
-					Condition:   amqp.ErrorInternalError,
-					Description: sMsg.Result.Err.Error(),
-					Info:        nil,
-				})
-			case pipeline.Stored:
-				fallthrough
-			case pipeline.Completed:
-				m.Accept()
-			case pipeline.Retry:
-				m.Release()
-			}
+			_ = i.ih.HandleResult(sMsg)
 		}
 	}()
 
@@ -92,30 +66,22 @@ func (i *Inbound) Start(wg *sync.WaitGroup) {
 		}()
 
 		for {
-			m, err := i.link.Receive(i.ctx)
+			i.ih.ReceiveTask()
 
-			if err != nil {
-				i.errc <- err
-				return
-			} else {
-
-				aMsg := &ceamqp.Message{AMQP:m}
-
-				subCtx, c := context.WithTimeout(i.ctx, time.Second*1000)
-				t := &pipeline.Task{
-					Context:  subCtx,
-					Cancel:   c,
-					Event:    aMsg,
-					Callback: i.results,
-					Msg:      m,
-				}
-
-				i.runner.Push(&pipeline.TaskRef{
-					Key:    i.nextId(),
-					Task:   t,
-					Parent: nil,
-				})
+			t := &pipeline.Task{
+				Context:  subCtx,
+				Cancel:   c,
+				Event:    aMsg,
+				Callback: i.results,
+				Msg:      m,
 			}
+
+			i.runner.Push(&pipeline.TaskRef{
+				Key:    i.nextId(),
+				Task:   t,
+				Parent: nil,
+			})
+
 		}
 	}()
 
@@ -130,18 +96,61 @@ func (i *Inbound) nextId() pipeline.TaskId {
 	return pipeline.TaskId(i.counter)
 }
 
-func NewInbound(ctx context.Context, c *config.Config, src string, opts []amqp.LinkOption) *Inbound {
+//func NewInbound(ctx context.Context, c *config.Config, src string, opts []amqp.LinkOption) *Inbound {
+func NewInbound(ih InboundHandler, r pipeline.Runner) *Inbound {
 
-	r := &Inbound{
-		conf: c,
-		errc : make(chan error, 1),
-		ctx:ctx,
-	}
 
-	o := append(opts, amqp.LinkSourceAddress(src))
-	if l, err := c.Session.NewReceiver(o...); err == nil {
-		r.link = l
-	}
 
-	return r
+	//r := &Inbound{
+	//	conf: c,
+	//	errc : make(chan error, 1),
+	//	ctx:ctx,
+	//}
+	//
+	//o := append(opts, amqp.LinkSourceAddress(src))
+	//if l, err := c.Session.NewReceiver(o...); err == nil {
+	//	r.link = l
+	//}
+	//
+	//return r
 }
+
+type AMQPHandler struct {
+	link    *amqp.Receiver
+	results chan *pipeline.TaskStatus
+	errc    chan error
+
+}
+
+func (ah *AMQPHandler) HandleResult(ts *pipeline.TaskStatus) error {
+	m := ts.Ref.Task.Msg.(*amqp.Message)
+    if v2.IsNACK(ts.Result) {
+		_ = m.Reject(&amqp.Error{
+			Condition:   amqp.ErrorInternalError,
+			Description: ts.Result.Error(),
+			Info:        nil,
+		})
+	} else if ts.Finished {
+		m.Accept()
+	}
+
+	return ts.Result
+}
+
+func (ah *AMQPHandler) ReceiveTask(ctx context.Context) (*pipeline.TaskRef, error) {
+	m, err := ah.link.Receive(i.ctx)
+
+	if err != nil {
+		i.errc <- err
+		return
+	} else {
+
+		aMsg := &ceamqp.Message{AMQP:m}
+
+		subCtx, c := context.WithTimeout(i.ctx, time.Second*1000)
+	}
+}
+
+
+
+

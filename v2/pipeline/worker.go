@@ -2,51 +2,10 @@ package pipeline
 
 import (
 	"context"
-	"github.com/cloudevents/sdk-go/pkg/binding"
-	"github.com/cloudevents/sdk-go/pkg/pipeline/config"
+	"github.com/cloudevents/sdk-go/v2/protocol"
 	"sync"
 )
 
-type TaskId uint32
-
-//type CallbackFunc func(s *TaskStatus)
-
-type Task struct {
-	Context  context.Context
-	Cancel   context.CancelFunc
-//	Event    *cloudevents.Event
-	Event 	 binding.Message
-	Callback chan *TaskStatus
-	Msg      interface{}
-}
-
-type TaskRef struct {
-	Key    TaskId
-	Task   *Task
-	Parent *TaskRef
-}
-
-type TaskAck int
-
-const (
-	Pending TaskAck = iota
-	Stored
-	Completed
-	Failed
-	Retry
-)
-
-type TaskResult struct {
-	Ack TaskAck
-	Err error
-}
-
-type TaskStatus struct {
-	Id       ElementId
-	Ref      *TaskRef
-	Result   TaskResult
-	Finished bool
-}
 
 type Processor interface {
 	Process(*TaskRef) TaskResult
@@ -69,10 +28,10 @@ func (w *Worker) Id() ElementId {
 	return w.id
 }
 
-func NewWorker(p Processor, cfg *config.Config, id ElementId) *Worker {
+func NewWorker(p Processor, id ElementId) *Worker {
 	return &Worker{
 		id:   id,
-		q:    make(chan *TaskRef, cfg.WSize),
+		q:    make(chan *TaskRef, defaultWS),
 		stop: make(chan bool, 1),
 		p:    p,
 	}
@@ -104,9 +63,7 @@ func (w *Worker) Start(wg *sync.WaitGroup) {
 						defer tr.Task.Cancel()
 						tRes := w.p.Process(tr)
 						f := true
-						if w.nStep != nil &&
-							tRes.Ack != Failed &&
-							tRes.Ack != Retry {
+						if w.nStep != nil && protocol.IsACK(tRes) {
 							f = false
 							w.nStep.Push(tr)
 						}

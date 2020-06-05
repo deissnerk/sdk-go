@@ -57,7 +57,7 @@ func main() {
 	pb := pipeline.NewPipelineBuilder(&cfg)
 
 	pipe := pb.
-		StartWithInbound(elements.NewInbound(context.Background(), &cfg, "testtopic", nil)).
+		StartWithInbound(pipeline.NewInbound(context.Background(), &cfg, "testtopic", nil)).
 		SplitWith(NewRandomRouter(senders, &cfg), &rRouterId)
 	pipe.Start()
 	pipe.Wait()

@@ -6,34 +6,31 @@ import (
 	"github.com/cloudevents/sdk-go/v2/protocol"
 )
 
-type TaskId uint32
-
-//type CallbackFunc func(s *TaskStatus)
+type TaskIndex uint32
 
 type Task struct {
-	Context  context.Context
-	Cancel   context.CancelFunc
+	Context context.Context
 	//	Event    *cloudevents.Event
-	Event 	 binding.Message
+	Event    binding.Message
 	Callback chan *TaskStatus
-	Msg      interface{}
 }
 
+// TODO
+// Better term?
 type TaskRef struct {
-	Key    TaskId
+	Key    TaskIndex
 	Task   *Task
 	Parent *TaskRef
 }
 
-type TaskAck int
-//
-//const (
-//	Pending TaskAck = iota
-//	Stored
-//	Completed
-//	Failed
-//	Retry
-//)
+func (t *TaskRef) SendStatusUpdate(id ElementId, r TaskResult, finished bool) {
+	t.Task.Callback <- &TaskStatus{
+		Id:       id,
+		Ref:      t,
+		Result:   r,
+		Finished: finished,
+	}
+}
 
 type TaskResult protocol.Result
 
@@ -42,4 +39,9 @@ type TaskStatus struct {
 	Ref      *TaskRef
 	Result   TaskResult
 	Finished bool
+}
+
+type TaskControl struct {
+	Status TaskStatus
+	Cancel context.CancelFunc
 }

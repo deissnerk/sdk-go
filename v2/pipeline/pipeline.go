@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"sync"
 )
 
@@ -26,6 +27,12 @@ func (p *Pipeline) Start() {
 	for _, s := range p.steps {
 		s.Start(p.wg)
 	}
+}
+
+// Drain drains the pipeline by shutting off inbound tasks and stopping each step
+// as soon as it contains no more pending tasks
+func (p *Pipeline) Drain(ctx context.Context) {
+
 }
 
 type PipelineBuilder struct {

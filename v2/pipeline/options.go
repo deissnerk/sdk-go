@@ -1,10 +1,22 @@
 package pipeline
 
-type StateOption func(*Supervisor) error
+type SupervisorOption func(*Supervisor) error
 
-func WithWindowSize(ws uint32) StateOption {
+/*func WithWindowSize(ws TaskIndex) SupervisorOption {
 	return func(sv *Supervisor) error {
-		sv.maxWSize = ws
+		sv.sw = NewSlidingWindow(ws)
+		return nil
+	}
+}
+*/
+func WithSplitter(ts TaskSplitter, maxWSize TaskIndex) SupervisorOption {
+	return func(sv *Supervisor) error {
+		sv.state = &SplitterState{
+			ts:       ts,
+			maxWSize: maxWSize,
+			wsc:      sv,
+			sw:       NewSlidingWindow(maxWSize),
+		}
 		return nil
 	}
 }

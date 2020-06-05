@@ -7,8 +7,13 @@ import (
 )
 
 
+type ProcessorOutput struct {
+	Result   TaskResult
+	FollowUp context.Context
+}
+
 type Processor interface {
-	Process(*TaskRef) TaskResult
+	Process(*TaskRef) ProcessorOutput
 }
 
 type Runner interface {
@@ -59,18 +64,19 @@ func (w *Worker) Start(wg *sync.WaitGroup) {
 				} else {
 					// We could potentially add more sophisticated things like retry handling here
 					func() {
-// When do we need Cancel()?
-						defer tr.Task.Cancel()
-						tRes := w.p.Process(tr)
+						pOut := w.p.Process(tr)
 						f := true
-						if w.nStep != nil && protocol.IsACK(tRes) {
+						if w.nStep != nil && protocol.IsACK(pOut.Result) {
 							f = false
+							if pOut.FollowUp != nil {
+								tr.Task.Context = pOut.FollowUp
+							}
 							w.nStep.Push(tr)
 						}
 						tr.Task.Callback <- &TaskStatus{
 							Id:	      w.id,
 							Ref:      tr,
-							Result:   tRes,
+							Result:   pOut.Result,
 							Finished: f,
 						}
 					}()
@@ -84,9 +90,4 @@ func (w *Worker) Stop() {
 	w.stop <- true
 }
 
-func NewTask(t *Task, status chan *TaskStatus) *Task {
-	nt := *t
-	nt.Context, nt.Cancel = context.WithCancel(t.Context)
-	nt.Callback = status
-	return &nt
-}
+

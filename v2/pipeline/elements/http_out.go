@@ -18,21 +18,21 @@ type HttpSender struct {
 	p http2.Protocol
 }
 
-func (s *HttpSender) Process(tr *pipeline.TaskRef) pipeline.TaskResult {
+func (s *HttpSender) Process(tr *pipeline.TaskRef) pipeline.ProcessorOutput {
 // Would prefer to use the http binding, but it does not provide access to its
 // encoders.
 	ev,_,_,err := binding.ToEvent(tr.Task.Event)
 	ctx,_,err := s.transport.Send(tr.Task.Context,ev)
 
 	if err != nil{
-		return pipeline.TaskResult{
+		return pipeline.ProcessorOutput{
 			Ack: pipeline.Failed,
 			Err: err,
 		}
 	}
 
 	rctx := cehttp.TransportContextFrom(ctx)
-	res := pipeline.TaskResult{
+	res := pipeline.ProcessorOutput{
 		Err:      nil,
 	}
 	switch rctx.StatusCode {

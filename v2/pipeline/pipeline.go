@@ -8,8 +8,7 @@ import (
 type ElementId *string
 
 type Element interface {
-	Start(wg *sync.WaitGroup)
-	Stop()
+	StartStop
 	Id() ElementId
 	SetNextStep(runner Runner)
 }
@@ -80,17 +79,17 @@ func (pb *PipelineBuilder) EndWith(p Processor, id ElementId) *Pipeline {
 	}
 }
 
-func (pb *PipelineBuilder) SplitWith(ts TaskSplitter, id ElementId) *Pipeline {
-	sv := NewSupervisor(ts, id)
-	pb.steps[len(pb.steps)-1].SetNextStep(sv)
-	pSteps := make([]Element, len(pb.steps)+1)
-	for i, s := range pb.steps {
-		pSteps[i] = s
-	}
-	pSteps[len(pSteps)-1] = sv
-
-	return &Pipeline{
-		steps: pSteps,
-		wg:    pb.wg,
-	}
-}
+//func (pb *PipelineBuilder) SplitWith(ts TaskSplitter, id ElementId) *Pipeline {
+//	sv := NewSupervisor(ts, id)
+//	pb.steps[len(pb.steps)-1].SetNextStep(sv)
+//	pSteps := make([]Element, len(pb.steps)+1)
+//	for i, s := range pb.steps {
+//		pSteps[i] = s
+//	}
+//	pSteps[len(pSteps)-1] = sv
+//
+//	return &Pipeline{
+//		steps: pSteps,
+//		wg:    pb.wg,
+//	}
+//}

@@ -52,7 +52,7 @@ func TestSlidingWindow_AddTask(t *testing.T) {
 				cond:     tt.fields.cond,
 				maxWSize: tt.fields.maxWSize,
 			}
-			sw.AddTask(tt.args.svt)
+			sw.AddTask()
 			require.Equal(t,tt.wants.wStart,sw.wStart)
 			require.Equal(t,tt.wants.wEnd,sw.wEnd)
 		})

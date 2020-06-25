@@ -73,7 +73,7 @@ func (i *Inbound) Start(wg *sync.WaitGroup) {
 			} else {
 				t := NewTask(ev,i.results,
 					func()(context.Context,context.CancelFunc) {return i.createCtx(i.ctx)})
-				i.runner.Push(&TaskRef{
+				i.runner.Push(&TaskContainer{
 					Key:    i.nextId(),
 					Task:   t,
 					Parent: nil,

@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	"sync"
 )
@@ -10,20 +11,21 @@ import (
 type ProcessorOutput struct {
 	Result   TaskResult
 	FollowUp context.Context
+	Changes  []binding.Transformer
 }
 
 type Processor interface {
-	Process(*TaskRef) ProcessorOutput
+	Process(*Task) *ProcessorOutput
 }
 
 type Runner interface {
 	Element
-	Push(*TaskRef)
+	Push(*TaskContainer)
 }
 
 type Worker struct {
 	id    ElementId
-	q     chan *TaskRef
+	q     chan *TaskContainer
 	stop  chan bool
 	p     Processor
 	nStep Runner
@@ -36,13 +38,13 @@ func (w *Worker) Id() ElementId {
 func NewWorker(p Processor, id ElementId) *Worker {
 	return &Worker{
 		id:   id,
-		q:    make(chan *TaskRef, defaultWS),
+		q:    make(chan *TaskContainer, defaultWS),
 		stop: make(chan bool, 1),
 		p:    p,
 	}
 }
 
-func (w *Worker) Push(tr *TaskRef) {
+func (w *Worker) Push(tr *TaskContainer) {
 	w.q <- tr
 }
 
@@ -58,27 +60,19 @@ func (w *Worker) Start(wg *sync.WaitGroup) {
 			select {
 			case <-w.stop:
 				return
-			case tr, more := <-w.q:
+			case tc, more := <-w.q:
 				if !more {
 					return
 				} else {
 					// We could potentially add more sophisticated things like retry handling here
 					func() {
-						pOut := w.p.Process(tr)
+						pOut := w.p.Process(&tc.Task)
 						f := true
 						if w.nStep != nil && protocol.IsACK(pOut.Result) {
 							f = false
-							if pOut.FollowUp != nil {
-								tr.Task.Context = pOut.FollowUp
-							}
-							w.nStep.Push(tr)
+							w.nStep.Push(tc.FollowUp(pOut))
 						}
-						tr.Task.Callback <- &TaskStatus{
-							Id:	      w.id,
-							Ref:      tr,
-							Result:   pOut.Result,
-							Finished: f,
-						}
+						tc.SendStatusUpdate(w.id,pOut.Result,f)
 					}()
 				}
 			}

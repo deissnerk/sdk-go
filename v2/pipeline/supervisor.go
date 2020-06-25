@@ -5,33 +5,16 @@ import (
 	"sync"
 )
 
-//type ResultFunc func(t *Task, ts *ProcessorOutput)
-
 type Supervisor struct {
 	state  SupervisorState
 	id     ElementId
-	q      chan *TaskRef
-	status chan *TaskStatus
-	stop   chan bool
-}
-
-func (s *Supervisor) SendStatusUpdate(ch chan *TaskStatus, ts *TaskStatus) {
-	ts.Id = s.id
-	ch <- ts
+	q      chan *TaskContainer
+	status chan *StatusMessage
 }
 
 const (
 	defaultWS TaskIndex = 8
 )
-
-func (s *Supervisor) SetNextStep(runner Runner) {
-	s.state.SetNextStep(runner)
-}
-
-func (s *Supervisor) Id() ElementId {
-	return s.id
-}
-
 
 type TaskAssignment struct {
 	Task   *Task
@@ -40,17 +23,19 @@ type TaskAssignment struct {
 }
 
 type SuperVisorTask struct {
-	Main *TaskRef
+	Main *TaskContainer
 	//	TStat []*TaskStatus
 	TStat interface{}
 }
 
-func (s *Supervisor) Push(tr *TaskRef) {
+func (s *Supervisor) Push(tr *TaskContainer) {
 	s.q <- tr
 }
 
 func (s *Supervisor) Start(wg *sync.WaitGroup) {
 	s.state.Start(wg)
+	s.q = make(chan *TaskContainer, defaultWS)
+	s.status = make(chan *StatusMessage, defaultWS*8) //8 is just a wild guess right now
 
 	stopComplete := make(chan bool, 1)
 	wg.Add(2)
@@ -59,20 +44,19 @@ func (s *Supervisor) Start(wg *sync.WaitGroup) {
 	go func() {
 		defer close(stopComplete)
 		defer wg.Done()
+		defer close(s.status)
+		defer s.state.Stop()
+
 		empty := false
 		stopped := false
 		for {
 			if empty && stopped {
+				// No incoming events and state is idle
 				break
 			}
 			select {
-			case <-s.stop:
-				// Stop accepting new Tasks
-				close(s.q)
-				// Should we cancel all tasks in addition?
-
-			case ts := <-s.status:
-				empty = s.state.UpdateTask(ts)
+			case sm := <-s.status:
+				empty = s.state.UpdateTask(sm)
 			case <-stopComplete:
 				stopped = true
 				empty = s.state.IsIdle()
@@ -97,40 +81,23 @@ func (s *Supervisor) Start(wg *sync.WaitGroup) {
 }
 
 func (s *Supervisor) Stop() {
-	s.state.Stop()
+	//TODO Create channels when starting and close them when stopping
+	close(s.q)
 }
 
-func NewSupervisor(ctx context.Context, id ElementId, state SupervisorState) *Supervisor {
+func (s *Supervisor) initChannels() {
+}
+
+func NewSupervisor(state SupervisorState) *Supervisor {
 	s := &Supervisor{
-		q:      make(chan *TaskRef, defaultWS),
-		status: make(chan *TaskStatus, defaultWS*8), //8 is just a wild guess right now
-		stop:   make(chan bool, 1),
 		state:  state,
-		id:     id,
 	}
-	//for _, o := range opts {
-	//	o(s)
-	//}
-	//
-	//// A StateOption could have created its own SupervisorState implementation.
-	//if s.state == nil {
-	//	s.state = &SplitterState{
-	//		tBuffer:  make([]*SuperVisorTask, defaultWS),
-	//		wStart:   0,
-	//		wEnd:     0,
-	//		wsc:      s,
-	//		cond:     sync.NewCond(&sync.Mutex{}),
-	//		maxWSize: defaultWS,
-	//	}
-	//}
 	return s
 }
 
-// This interface describes how the Supervisor interacts with the state of sliding window
-// An implementation, that waits for all sub-tasks to successfully complete, is used by default.
 type SupervisorState interface {
-	AddTask(tr *TaskRef, callback chan *TaskStatus)
-	UpdateTask(sMsg *TaskStatus) bool
+	AddTask(tr *TaskContainer, callback chan *StatusMessage)
+	UpdateTask(sMsg *StatusMessage) bool
 	SetNextStep(runner Runner)
 	IsIdle() bool
 	StartStop

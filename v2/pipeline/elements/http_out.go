@@ -18,7 +18,7 @@ type HttpSender struct {
 	p http2.Protocol
 }
 
-func (s *HttpSender) Process(tr *pipeline.TaskRef) pipeline.ProcessorOutput {
+func (s *HttpSender) Process(tr *pipeline.TaskContainer) pipeline.ProcessorOutput {
 // Would prefer to use the http binding, but it does not provide access to its
 // encoders.
 	ev,_,_,err := binding.ToEvent(tr.Task.Event)

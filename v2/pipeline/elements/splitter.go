@@ -24,14 +24,14 @@ type TaskSplitter interface {
 }
 
 type Splitter struct {
-	state  *SplitterState
-	sv     *pipeline.Supervisor
-	svWg   *sync.WaitGroup
-	mainWg *sync.WaitGroup
+	state *SplitterState
+	sv    *pipeline.Supervisor
+	//svWg   *sync.WaitGroup
+	//mainWg *sync.WaitGroup
 }
 
 func (s Splitter) Start(wg *sync.WaitGroup) {
-// The Supervisor will start the state and all related resources
+	// The Supervisor will start the state and all related resources
 	s.sv.Start(wg)
 }
 
@@ -54,9 +54,8 @@ type SplitterState struct {
 	ts       TaskSplitter
 	maxWSize pipeline.TaskIndex
 	//	wsc      WindowStateCallback
-	sw          *pipeline.SlidingWindow
-	nextStep    pipeline.Runner
-	hasNextStep bool
+	sw       *pipeline.SlidingWindow
+	nextStep pipeline.Runner
 }
 
 func (st *SplitterState) Id() pipeline.ElementId {
@@ -76,7 +75,6 @@ func (st *SplitterState) Stop() {
 
 func (st *SplitterState) SetNextStep(step pipeline.Runner) {
 	st.nextStep = step
-	st.hasNextStep = true
 }
 
 func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
@@ -138,10 +136,10 @@ func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
 
 	if st.ts.IsFinished(tStat) {
 		joinStat := st.ts.Join(tStat)
-		if st.hasNextStep && protocol.IsACK(joinStat.Result) {
+		if st.nextStep != nil && protocol.IsACK(joinStat.Result) {
 			// If there is a next step, push the main task to it and send the result as a status update
-			st.nextStep.Push(svt.Main.FollowUp(joinStat))
 			svt.Main.SendStatusUpdate(st.id, joinStat.Result, false)
+			st.nextStep.Push(svt.Main.FollowUp(joinStat))
 		} else {
 			svt.Main.SendStatusUpdate(st.id, joinStat.Result, true)
 		}

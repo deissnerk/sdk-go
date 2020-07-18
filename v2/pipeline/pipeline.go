@@ -1,10 +1,5 @@
 package pipeline
 
-import (
-	"context"
-	"sync"
-)
-
 type ElementId *string
 
 type Element interface {
@@ -13,7 +8,7 @@ type Element interface {
 	SetNextStep(runner Runner)
 }
 
-type Pipeline struct {
+/*type Pipeline struct {
 	steps []Element
 	wg    *sync.WaitGroup
 }
@@ -57,6 +52,8 @@ func (pb *PipelineBuilder) StartWithProcessor(p Processor, id ElementId) *Pipeli
 
 }
 
+
+
 func (pb *PipelineBuilder) ContinueWith(p Processor, id ElementId) *PipelineBuilder {
 	nw := NewWorker(p, id)
 	pb.steps[len(pb.steps)-1].SetNextStep(nw)
@@ -78,7 +75,7 @@ func (pb *PipelineBuilder) EndWith(p Processor, id ElementId) *Pipeline {
 		wg:    pb.wg,
 	}
 }
-
+*/
 //func (pb *PipelineBuilder) SplitWith(ts TaskSplitter, id ElementId) *Pipeline {
 //	sv := NewSupervisor(ts, id)
 //	pb.steps[len(pb.steps)-1].SetNextStep(sv)

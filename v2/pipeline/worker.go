@@ -38,14 +38,19 @@ func (w *Worker) Id() ElementId {
 func NewWorker(p Processor, id ElementId) *Worker {
 	return &Worker{
 		id:   id,
-		q:    make(chan *TaskContainer, defaultWS),
+		q:    make(chan *TaskContainer, DefaultWS),
 		stop: make(chan bool, 1),
 		p:    p,
 	}
 }
 
-func (w *Worker) Push(tr *TaskContainer) {
-	w.q <- tr
+func (w *Worker) Push(tc *TaskContainer) {
+	select {
+	case w.q <- tc:
+		return
+	case <-tc.Task.Context.Done():
+		tc.SendCancelledUpdate()
+	}
 }
 
 func (w *Worker) SetNextStep(runner Runner) {

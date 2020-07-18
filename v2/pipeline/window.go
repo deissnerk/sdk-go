@@ -40,6 +40,7 @@ func (sw *SlidingWindow) AddTask() (*SuperVisorTask, TaskIndex){
 func (sw *SlidingWindow) RemoveTask(ti TaskIndex) bool {
 	defer sw.cond.L.Unlock()
 	sw.cond.L.Lock()
+	sw.tBuf[ti] = nil
 
 	for i := sw.wStart; sw.tBuf[sw.wStart] == nil && i < sw.maxWSize && sw.wStart != sw.wEnd; i++ {
 		if sw.wStart < sw.maxWSize-1 {

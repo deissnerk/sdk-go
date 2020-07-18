@@ -13,7 +13,14 @@ type Task struct {
 	Event   binding.Message
 }
 
-// TODO: Better term?
+type TaskCancelledError struct {
+	Err 	error
+}
+
+func (tce TaskCancelledError) Error() string {
+	return "Task cancelled: "+tce.Err.Error()
+}
+
 // TaskContainer holds all information a Runner needs to execute the Task
 type TaskContainer struct {
 	Callback chan *StatusMessage
@@ -41,6 +48,10 @@ func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bo
 	}
 }
 
+func (t *TaskContainer) SendCancelledUpdate() {
+	t.SendStatusUpdate(nil,TaskCancelledError{Err:t.Task.Context.Err()}, false)
+}
+
 // FollowUp() returns a new TaskContainer that is a follow-up to the existing one
 func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
 	// Record changes
@@ -54,7 +65,7 @@ func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
 		Changes:  nil, // No changes yet
 	}
 
-	// If the output contained a new Context, this is used
+	// If the output contains a new Context, this is used
 	if output.FollowUp != nil {
 		followUp.Task.Context = output.FollowUp
 	}

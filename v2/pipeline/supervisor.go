@@ -13,7 +13,7 @@ type Supervisor struct {
 }
 
 const (
-	defaultWS TaskIndex = 8
+	DefaultWS TaskIndex = 8
 )
 
 type TaskAssignment struct {
@@ -28,19 +28,23 @@ type SuperVisorTask struct {
 	TStat interface{}
 }
 
-func (s *Supervisor) Push(tr *TaskContainer) {
-	s.q <- tr
+func (s *Supervisor) Push(tc *TaskContainer) {
+	select {
+	case s.q <- tc:
+		return
+	case <-tc.Task.Context.Done():
+		tc.SendCancelledUpdate()
+	}
 }
 
 func (s *Supervisor) Start(wg *sync.WaitGroup) {
 	s.state.Start(wg)
-	s.q = make(chan *TaskContainer, defaultWS)
-	s.status = make(chan *StatusMessage, defaultWS*8) //8 is just a wild guess right now
+	s.q = make(chan *TaskContainer, DefaultWS)
+	s.status = make(chan *StatusMessage, DefaultWS*8) //8 is just a wild guess right now
 
 	stopComplete := make(chan bool, 1)
 	wg.Add(2)
 
-	// Can this goroutine be the same as in Inbound?
 	go func() {
 		defer close(stopComplete)
 		defer wg.Done()
@@ -69,36 +73,33 @@ func (s *Supervisor) Start(wg *sync.WaitGroup) {
 		defer wg.Done()
 		for {
 			select {
-			case tr, more := <-s.q:
+			case tc, more := <-s.q:
 				if !more {
 					stopComplete <- true
 					break
 				}
-				s.state.AddTask(tr, s.status)
+
+				s.state.AddTask(tc, s.status)
 			}
 		}
 	}()
 }
 
 func (s *Supervisor) Stop() {
-	//TODO Create channels when starting and close them when stopping
-	close(s.q)
-}
 
-func (s *Supervisor) initChannels() {
+	close(s.q)
 }
 
 func NewSupervisor(state SupervisorState) *Supervisor {
 	s := &Supervisor{
-		state:  state,
+		state: state,
 	}
 	return s
 }
 
 type SupervisorState interface {
-	AddTask(tr *TaskContainer, callback chan *StatusMessage)
+	AddTask(tc *TaskContainer, callback chan *StatusMessage)
 	UpdateTask(sMsg *StatusMessage) bool
-	SetNextStep(runner Runner)
 	IsIdle() bool
 	StartStop
 }

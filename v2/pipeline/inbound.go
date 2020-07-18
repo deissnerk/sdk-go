@@ -17,8 +17,6 @@ type InboundHandler interface {
 	Close(ctx context.Context) (err error)
 }
 
-// We might create a more general InboundProcessor interface later and make this an
-// AMQP specific implementation of it.
 type Inbound struct {
 	stop      chan bool
 	id        ElementId

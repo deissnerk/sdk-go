@@ -36,7 +36,7 @@ func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bo
 			t.Parent.SendStatusUpdate(id, r, finished)
 		}
 	} else {
-		t.Callback <- &StatusMessage {
+		t.Callback <- &StatusMessage{
 			Key: t.Key,
 			Status: TaskStatus{
 				Id: id,
@@ -49,7 +49,7 @@ func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bo
 }
 
 func (t *TaskContainer) SendCancelledUpdate() {
-	t.SendStatusUpdate(nil,TaskCancelledError{Err:t.Task.Context.Err()}, false)
+	t.SendStatusUpdate(nil, TaskCancelledError{Err: t.Task.Context.Err()}, false)
 }
 
 // FollowUp() returns a new TaskContainer that is a follow-up to the existing one
@@ -96,8 +96,8 @@ type TaskStatus struct {
 }
 
 type StatusMessage struct {
-	Key      interface{}
-	Status   TaskStatus
+	Key    interface{}
+	Status TaskStatus
 }
 
 type TaskControl struct {

@@ -4,29 +4,28 @@ import (
 	"context"
 	"fmt"
 	"github.com/cloudevents/sdk-go/v2/binding"
-	"github.com/cloudevents/sdk-go/v2/pipeline"
+	pipeline2 "pipeline"
 	"sync"
 )
 
 type ReceiveHandler interface {
-
-	pipeline.StartStop
+	pipeline2.StartStop
 
 	// HandleResult() is called to handle any status updates regarding the event that
 	// was fed into the pipeline. If true is returned, the processing of the event has been
 	// completed.
-	HandleResult(event binding.Message, ts *pipeline.TaskControl) bool
+	HandleResult(event binding.Message, ts *pipeline2.TaskControl) bool
 
 	// Receive works similar to the Receiver() method of protocol.Receiver,
 	// but it should handle protocol specific errors.
 	// E.g. in AMQP a connection may be closed from time to time and just has
 	// to be reopened again. These protocol specific errors that can be handled
 	// graciously SHOULD NOT be reported back to the Inbound
-	Receive(ctx context.Context) (*pipeline.Task, error)
+	Receive(ctx context.Context) (*pipeline2.Task, error)
 }
 
-func NewInbound(handler ReceiveHandler, firstStep pipeline.Runner, parentCtx context.Context,
-	id pipeline.ElementId) *Inbound {
+func NewInbound(handler ReceiveHandler, firstStep pipeline2.Runner, parentCtx context.Context,
+	id pipeline2.ElementId) *Inbound {
 	rcvCtx,rcvCancelFn := context.WithCancel(parentCtx)
 	i := &Inbound{
 		startLock: sync.Mutex{},
@@ -37,10 +36,10 @@ func NewInbound(handler ReceiveHandler, firstStep pipeline.Runner, parentCtx con
 			firstStep: nil,
 			rh:        nil,
 		},
-		sv: pipeline.NewSupervisor(
+		sv: pipeline2.NewSupervisor(
 			&InboundState{
 				id:        id,
-				sw:        pipeline.NewSlidingWindow(pipeline.DefaultWS),
+				sw:        pipeline2.NewSlidingWindow(pipeline2.DefaultWS),
 				firstStep: firstStep,
 				rh:        handler,
 			}),
@@ -56,7 +55,7 @@ type Inbound struct {
 	startLock   sync.Mutex
 	started     bool
 	state       *InboundState
-	sv          *pipeline.Supervisor
+	sv          *pipeline2.Supervisor
 	rcvCtx      context.Context
 	rcvCancelFn context.CancelFunc
 	rcvHandler  ReceiveHandler
@@ -82,7 +81,7 @@ func (i *Inbound) Start(wg *sync.WaitGroup) error {
 				// Error handling may be difficult. When to retry and when to cancel?
 				// Encapsulate this in ReceiveHandler?
 			} else {
-				i.sv.Push(&pipeline.TaskContainer{
+				i.sv.Push(&pipeline2.TaskContainer{
 					Callback: nil,
 					Key:      nil,
 					Task:     *task,
@@ -110,13 +109,13 @@ func (i *Inbound) Stop() {
 }
 
 type InboundState struct {
-	id        pipeline.ElementId
-	sw        *pipeline.SlidingWindow
-	firstStep pipeline.Runner
+	id        pipeline2.ElementId
+	sw        *pipeline2.SlidingWindow
+	firstStep pipeline2.Runner
 	rh        ReceiveHandler
 }
 
-func (iState *InboundState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
+func (iState *InboundState) AddTask(tc *pipeline2.TaskContainer, callback chan *pipeline2.StatusMessage) {
 	svt, key := iState.sw.AddTask()
 	var cancel context.CancelFunc
 
@@ -124,10 +123,10 @@ func (iState *InboundState) AddTask(tc *pipeline.TaskContainer, callback chan *p
 	tc.Task.Context, cancel = context.WithCancel(tc.Task.Context)
 	tc.Key = key
 
-	*svt = pipeline.SuperVisorTask{
+	*svt = pipeline2.SuperVisorTask{
 		Main: tc,
-		TStat: pipeline.TaskControl{
-			Status: pipeline.TaskStatus{
+		TStat: pipeline2.TaskControl{
+			Status: pipeline2.TaskStatus{
 				Id:       iState.id,
 				Result:   nil,
 				Finished: false,
@@ -140,10 +139,10 @@ func (iState *InboundState) AddTask(tc *pipeline.TaskContainer, callback chan *p
 
 }
 
-func (iState *InboundState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
-	tKey := sMsg.Key.(pipeline.TaskIndex)
+func (iState *InboundState) UpdateTask(sMsg *pipeline2.StatusMessage) bool {
+	tKey := sMsg.Key.(pipeline2.TaskIndex)
 	svt := iState.sw.GetSupervisorTask(tKey)
-	tStat := svt.TStat.(pipeline.TaskControl)
+	tStat := svt.TStat.(pipeline2.TaskControl)
 	tStat.Status = sMsg.Status
 	if iState.rh.HandleResult(svt.Main.Task.Event, &tStat) {
 		return iState.sw.RemoveTask(tKey)

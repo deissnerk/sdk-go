@@ -1,23 +1,23 @@
 package elements
 
 import (
-	"github.com/cloudevents/sdk-go/v2/pipeline"
+	pipeline2 "pipeline"
 	"sync"
 	"testing"
 )
 
 func TestSplitterState_AddTask(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	type args struct {
-		tc       *pipeline.TaskContainer
-		callback chan *pipeline.TaskStatus
+		tc       *pipeline2.TaskContainer
+		callback chan *pipeline2.TaskStatus
 	}
 	tests := []struct {
 		name   string
@@ -42,11 +42,11 @@ func TestSplitterState_AddTask(t *testing.T) {
 
 func TestSplitterState_IsIdle(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	tests := []struct {
@@ -75,15 +75,15 @@ func TestSplitterState_IsIdle(t *testing.T) {
 
 func TestSplitterState_SetNextStep(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	type args struct {
-		step pipeline.Runner
+		step pipeline2.Runner
 	}
 	tests := []struct {
 		name   string
@@ -108,11 +108,11 @@ func TestSplitterState_SetNextStep(t *testing.T) {
 
 func TestSplitterState_Start(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	type args struct {
@@ -141,11 +141,11 @@ func TestSplitterState_Start(t *testing.T) {
 
 func TestSplitterState_Stop(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	tests := []struct {
@@ -170,15 +170,15 @@ func TestSplitterState_Stop(t *testing.T) {
 
 func TestSplitterState_UpdateTask(t *testing.T) {
 	type fields struct {
-		id          pipeline.ElementId
+		id          pipeline2.ElementId
 		ts          TaskSplitter
-		maxWSize    pipeline.TaskIndex
-		sw          *pipeline.SlidingWindow
-		nextStep    pipeline.Runner
+		maxWSize    pipeline2.TaskIndex
+		sw          *pipeline2.SlidingWindow
+		nextStep    pipeline2.Runner
 		hasNextStep bool
 	}
 	type args struct {
-		sMsg *pipeline.StatusMessage
+		sMsg *pipeline2.StatusMessage
 	}
 	tests := []struct {
 		name   string

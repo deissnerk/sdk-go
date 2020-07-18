@@ -72,7 +72,7 @@ func (sw *SlidingWindow)IsEmpty() bool {
 	return e
 }
 
-func NewSlidingWindow(maxWSize TaskIndex) *SlidingWindow{
+func NewSlidingWindow(maxWSize TaskIndex) *SlidingWindow {
 	return &SlidingWindow{
 		tBuf:     make([]*SuperVisorTask, maxWSize),
 		wStart:   0,

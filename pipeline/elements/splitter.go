@@ -3,29 +3,29 @@ package elements
 import (
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	"github.com/pkg/errors"
+	pipeline2 "pipeline"
 	"sync"
 )
-import "github.com/cloudevents/sdk-go/v2/pipeline"
 
 type splitterTaskKey struct {
-	key    pipeline.TaskIndex
-	subKey pipeline.TaskIndex
+	key    pipeline2.TaskIndex
+	subKey pipeline2.TaskIndex
 }
 
 type TaskSplitter interface {
-	Split(origin *pipeline.Task) []*pipeline.TaskAssignment
+	Split(origin *pipeline2.Task) []*pipeline2.TaskAssignment
 
 	// Take the status of all sub-tasks
-	Join(status []*pipeline.TaskControl) *pipeline.ProcessorOutput
+	Join(status []*pipeline2.TaskControl) *pipeline2.ProcessorOutput
 
-	IsFinished(status []*pipeline.TaskControl) bool
+	IsFinished(status []*pipeline2.TaskControl) bool
 
-	pipeline.StartStop
+	pipeline2.StartStop
 }
 
 type Splitter struct {
 	state *SplitterState
-	sv    *pipeline.Supervisor
+	sv    *pipeline2.Supervisor
 	//svWg   *sync.WaitGroup
 	//mainWg *sync.WaitGroup
 }
@@ -39,26 +39,26 @@ func (s Splitter) Stop() {
 	s.sv.Stop()
 }
 
-func (s Splitter) Id() pipeline.ElementId {
+func (s Splitter) Id() pipeline2.ElementId {
 	return s.state.id
 }
 
-func (s Splitter) SetNextStep(runner pipeline.Runner) {
+func (s Splitter) SetNextStep(runner pipeline2.Runner) {
 	s.state.SetNextStep(runner)
 }
 
 // The default SupervisorState implementation. It maintains a window and sets finishes a task, when all sub-tasks
 // are finished.
 type SplitterState struct {
-	id       pipeline.ElementId
+	id       pipeline2.ElementId
 	ts       TaskSplitter
-	maxWSize pipeline.TaskIndex
+	maxWSize pipeline2.TaskIndex
 	//	wsc      WindowStateCallback
-	sw       *pipeline.SlidingWindow
-	nextStep pipeline.Runner
+	sw       *pipeline2.SlidingWindow
+	nextStep pipeline2.Runner
 }
 
-func (st *SplitterState) Id() pipeline.ElementId {
+func (st *SplitterState) Id() pipeline2.ElementId {
 	return st.id
 }
 
@@ -73,11 +73,11 @@ func (st *SplitterState) Stop() {
 	st.nextStep.Stop()
 }
 
-func (st *SplitterState) SetNextStep(step pipeline.Runner) {
+func (st *SplitterState) SetNextStep(step pipeline2.Runner) {
 	st.nextStep = step
 }
 
-func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
+func (st *SplitterState) AddTask(tc *pipeline2.TaskContainer, callback chan *pipeline2.StatusMessage) {
 	tas := st.ts.Split(&tc.Task)
 
 	if len(tas) == 0 {
@@ -86,11 +86,11 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 	}
 	svt, key := st.sw.AddTask()
 
-	tStat := make([]*pipeline.TaskControl, len(tas))
+	tStat := make([]*pipeline2.TaskControl, len(tas))
 
 	for i, ta := range tas {
-		tStat[i] = &pipeline.TaskControl{
-			Status: pipeline.TaskStatus{
+		tStat[i] = &pipeline2.TaskControl{
+			Status: pipeline2.TaskStatus{
 				Id: nil,
 				//Key: splitterTaskKey{
 				//	key:    key,
@@ -103,18 +103,18 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 		}
 	}
 
-	*svt = pipeline.SuperVisorTask{
+	*svt = pipeline2.SuperVisorTask{
 		Main:  tc,
 		TStat: tStat,
 	}
 
 	for i, ta := range tas {
 		ta.Runner.Push(
-			&pipeline.TaskContainer{
+			&pipeline2.TaskContainer{
 				Callback: callback,
 				Key: splitterTaskKey{
 					key:    key,
-					subKey: pipeline.TaskIndex(i),
+					subKey: pipeline2.TaskIndex(i),
 				},
 				Task:    *ta.Task,
 				Parent:  tc,
@@ -128,10 +128,10 @@ func (st *SplitterState) IsIdle() bool {
 }
 
 // Returns true, if the window is empty
-func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
+func (st *SplitterState) UpdateTask(sMsg *pipeline2.StatusMessage) bool {
 	tKey := sMsg.Key.(splitterTaskKey)
 	svt := st.sw.GetSupervisorTask(tKey.key)
-	tStat := svt.TStat.([]*pipeline.TaskControl)
+	tStat := svt.TStat.([]*pipeline2.TaskControl)
 	tStat[tKey.subKey].Status = sMsg.Status
 
 	if st.ts.IsFinished(tStat) {

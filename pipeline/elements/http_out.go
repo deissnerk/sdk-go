@@ -2,37 +2,38 @@ package elements
 
 import (
 	"context"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/pkg/binding"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/pipeline"
 	http2 "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"log"
 	"net/http"
 	"net/url"
+	pipeline2 "pipeline"
 )
 
-var _ pipeline.Processor = (*HttpSender)(nil)
+var _ pipeline2.Processor = (*HttpSender)(nil)
 
 type HttpSender struct {
 	target    *url.URL
 	p http2.Protocol
 }
 
-func (s *HttpSender) Process(tr *pipeline.TaskContainer) pipeline.ProcessorOutput {
+func (s *HttpSender) Process(tr *pipeline2.TaskContainer) pipeline2.ProcessorOutput {
 // Would prefer to use the http binding, but it does not provide access to its
 // encoders.
 	ev,_,_,err := binding.ToEvent(tr.Task.Event)
 	ctx,_,err := s.transport.Send(tr.Task.Context,ev)
 
 	if err != nil{
-		return pipeline.ProcessorOutput{
+		return pipeline2.ProcessorOutput{
 			Ack: pipeline.Failed,
 			Err: err,
 		}
 	}
 
 	rctx := cehttp.TransportContextFrom(ctx)
-	res := pipeline.ProcessorOutput{
+	res := pipeline2.ProcessorOutput{
 		Err:      nil,
 	}
 	switch rctx.StatusCode {

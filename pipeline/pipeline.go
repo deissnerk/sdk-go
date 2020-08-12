@@ -1,92 +1,78 @@
 package pipeline
 
-type ElementId *string
+import (
+	"sync"
+)
+
+type ElementId string
 
 type Element interface {
 	StartStop
 	Id() ElementId
-	SetNextStep(runner Runner)
 }
 
-/*type Pipeline struct {
-	steps []Element
-	wg    *sync.WaitGroup
-}
-
-func (p *Pipeline) Wait() {
-	p.wg.Wait()
+type Pipeline struct {
+	Element
+	reverseElements []Element
+	wg              *sync.WaitGroup
 }
 
 func (p *Pipeline) Start() {
-	for _, s := range p.steps {
+	for _, s := range p.reverseElements {
 		s.Start(p.wg)
 	}
 }
 
 // Drain drains the pipeline by shutting off inbound tasks and stopping each step
 // as soon as it contains no more pending tasks
-func (p *Pipeline) Drain(ctx context.Context) {
+func (p *Pipeline) Stop() {
+	p.reverseElements[len(p.reverseElements)-1].Stop()
+	p.wg.Wait()
+}
 
+type ElementConstructor func(nextStep Runner) Element
+
+
+type constructorListEntry struct {
+	construct ElementConstructor
+	before    *constructorListEntry
 }
 
 type PipelineBuilder struct {
-	steps []Element
-	wg    *sync.WaitGroup
+	lastConstructor *constructorListEntry
+	length             int
 }
 
-func NewPipelineBuilder() *PipelineBuilder {
-	return &PipelineBuilder{
-		wg:  &sync.WaitGroup{}}
-}
-
-func (pb *PipelineBuilder) StartWithInbound(pe Element) *PipelineBuilder {
-	pb.steps = make([]Element, 1)
-	pb.steps[0] = pe
-	return pb
-}
-
-func (pb *PipelineBuilder) StartWithProcessor(p Processor, id ElementId) *PipelineBuilder {
-	pb.steps = make([]Element, 1)
-	pb.steps[0] = NewWorker(p, id)
-	return pb
-
-}
-
-
-
-func (pb *PipelineBuilder) ContinueWith(p Processor, id ElementId) *PipelineBuilder {
-	nw := NewWorker(p, id)
-	pb.steps[len(pb.steps)-1].SetNextStep(nw)
-	pb.steps = append(pb.steps, nw)
-	return pb
-}
-
-func (pb *PipelineBuilder) EndWith(p Processor, id ElementId) *Pipeline {
-	nw := NewWorker(p, id)
-	pb.steps[len(pb.steps)-1].SetNextStep(nw)
-	pSteps := make([]Element, len(pb.steps)+1)
-	for i, s := range pb.steps {
-		pSteps[i] = s
+func (pb *PipelineBuilder) Then(construct ElementConstructor) *PipelineBuilder{
+	if pb.lastConstructor == nil {
+		pb.lastConstructor = &constructorListEntry{
+			construct: construct,
+			before:    nil,
+		}
+		pb.length = 1
+	} else {
+		newEnd := &constructorListEntry{
+			construct: construct,
+			before:    pb.lastConstructor,
+		}
+		pb.lastConstructor = newEnd
+		pb.length++
 	}
-	pSteps[len(pSteps)-1] = nw
+	return pb
+}
+
+func (pb *PipelineBuilder) Build() *Pipeline {
+	reverseElements := make([]Element, pb.length)
+
+	next := pb.lastConstructor.construct(nil)
+	reverseElements[0] = next
+	for entry, i := pb.lastConstructor.before, 1; entry != nil; entry, i = entry.before, i+1 {
+		next = entry.construct(next.(Runner))
+		reverseElements[i] = next
+	}
 
 	return &Pipeline{
-		steps: pSteps,
-		wg:    pb.wg,
+		reverseElements: reverseElements,
+		wg:              &sync.WaitGroup{},
 	}
 }
-*/
-//func (pb *PipelineBuilder) SplitWith(ts TaskSplitter, id ElementId) *Pipeline {
-//	sv := NewSupervisor(ts, id)
-//	pb.steps[len(pb.steps)-1].SetNextStep(sv)
-//	pSteps := make([]Element, len(pb.steps)+1)
-//	for i, s := range pb.steps {
-//		pSteps[i] = s
-//	}
-//	pSteps[len(pSteps)-1] = sv
-//
-//	return &Pipeline{
-//		steps: pSteps,
-//		wg:    pb.wg,
-//	}
-//}

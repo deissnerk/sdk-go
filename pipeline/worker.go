@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+var _ Runner = (*Worker)(nil)
 
 type ProcessorOutput struct {
 	Result   TaskResult
@@ -14,6 +15,7 @@ type ProcessorOutput struct {
 	Changes  []binding.Transformer
 }
 
+// TODO Needs to be closed/stopped?
 type Processor interface {
 	Process(*Task) *ProcessorOutput
 }
@@ -35,12 +37,13 @@ func (w *Worker) Id() ElementId {
 	return w.id
 }
 
-func NewWorker(p Processor, id ElementId) *Worker {
+func NewWorker(p Processor, id ElementId, nextStep Runner) *Worker {
 	return &Worker{
 		id:   id,
 		q:    make(chan *TaskContainer, DefaultWS),
 		stop: make(chan bool, 1),
 		p:    p,
+		nStep: nextStep,
 	}
 }
 
@@ -53,11 +56,12 @@ func (w *Worker) Push(tc *TaskContainer) {
 	}
 }
 
-func (w *Worker) SetNextStep(runner Runner) {
+func (w *Worker) Then(runner Runner) Element{
 	w.nStep = runner
+	return runner
 }
 
-func (w *Worker) Start(wg *sync.WaitGroup) {
+func (w *Worker) Start(wg *sync.WaitGroup) error{
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -83,6 +87,7 @@ func (w *Worker) Start(wg *sync.WaitGroup) {
 			}
 		}
 	}()
+	return nil
 }
 
 func (w *Worker) Stop() {

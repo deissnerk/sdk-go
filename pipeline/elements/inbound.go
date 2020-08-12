@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/cloudevents/sdk-go/v2/binding"
-	pipeline2 "pipeline"
+	pipeline2 "github.com/cloudevents/sdk-go/pipeline"
 	"sync"
 )
 
 type ReceiveHandler interface {
-	pipeline2.StartStop
-
 	// HandleResult() is called to handle any status updates regarding the event that
 	// was fed into the pipeline. If true is returned, the processing of the event has been
 	// completed.
@@ -24,18 +22,16 @@ type ReceiveHandler interface {
 	Receive(ctx context.Context) (*pipeline2.Task, error)
 }
 
-func NewInbound(handler ReceiveHandler, firstStep pipeline2.Runner, parentCtx context.Context,
-	id pipeline2.ElementId) *Inbound {
-	rcvCtx,rcvCancelFn := context.WithCancel(parentCtx)
+func NewInbound(handler ReceiveHandler,
+	parentCtx context.Context,
+	id pipeline2.ElementId,
+	firstStep pipeline2.Runner) *Inbound {
+
+	rcvCtx, rcvCancelFn := context.WithCancel(parentCtx)
 	i := &Inbound{
 		startLock: sync.Mutex{},
 		started:   false,
-		state: &InboundState{
-			id:        nil,
-			sw:        nil,
-			firstStep: nil,
-			rh:        nil,
-		},
+		id: id,
 		sv: pipeline2.NewSupervisor(
 			&InboundState{
 				id:        id,
@@ -54,11 +50,16 @@ func NewInbound(handler ReceiveHandler, firstStep pipeline2.Runner, parentCtx co
 type Inbound struct {
 	startLock   sync.Mutex
 	started     bool
-	state       *InboundState
+//	state       *InboundState
+	id 			pipeline2.ElementId
 	sv          *pipeline2.Supervisor
 	rcvCtx      context.Context
 	rcvCancelFn context.CancelFunc
 	rcvHandler  ReceiveHandler
+}
+
+func (i *Inbound) Id() pipeline2.ElementId {
+	return i.id
 }
 
 func (i *Inbound) Start(wg *sync.WaitGroup) error {
@@ -76,7 +77,7 @@ func (i *Inbound) Start(wg *sync.WaitGroup) error {
 		for {
 
 			if task, err := i.rcvHandler.Receive(ctx); err != nil {
-				// TODO Log the error? Perhaps the ReceiveHandler should do that!
+				// Log the error? Perhaps the ReceiveHandler should do that!
 				i.Stop()
 				// Error handling may be difficult. When to retry and when to cancel?
 				// Encapsulate this in ReceiveHandler?
@@ -86,7 +87,6 @@ func (i *Inbound) Start(wg *sync.WaitGroup) error {
 					Key:      nil,
 					Task:     *task,
 					Parent:   nil,
-					Changes:  nil,
 				})
 			}
 			select {
@@ -122,6 +122,7 @@ func (iState *InboundState) AddTask(tc *pipeline2.TaskContainer, callback chan *
 	// Add cancel to the context
 	tc.Task.Context, cancel = context.WithCancel(tc.Task.Context)
 	tc.Key = key
+	tc.Callback = callback
 
 	*svt = pipeline2.SuperVisorTask{
 		Main: tc,

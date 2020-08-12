@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/cloudevents/sdk-go/v2/pipeline"
-	"github.com/cloudevents/sdk-go/v2/pipeline/config"
-	"github.com/cloudevents/sdk-go/v2/pipeline/elements"
+	"github.com/cloudevents/sdk-go/pipeline"
+	"honnef.co/go/tools/config"
+
+	"github.com/cloudevents/sdk-go/pipeline/elements"
 	"math/rand"
 	"sync"
 )

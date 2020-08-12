@@ -11,6 +11,7 @@ type TaskIndex uint32
 type Task struct {
 	Context context.Context
 	Event   binding.Message
+	Changes []binding.Transformer
 }
 
 type TaskCancelledError struct {
@@ -27,7 +28,6 @@ type TaskContainer struct {
 	Key      interface{}
 	Task     Task
 	Parent   *TaskContainer
-	Changes  []binding.Transformer
 }
 
 func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bool) {
@@ -49,20 +49,23 @@ func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bo
 }
 
 func (t *TaskContainer) SendCancelledUpdate() {
-	t.SendStatusUpdate(nil, TaskCancelledError{Err: t.Task.Context.Err()}, false)
+	t.SendStatusUpdate("", TaskCancelledError{Err: t.Task.Context.Err()}, false)
 }
 
 // FollowUp() returns a new TaskContainer that is a follow-up to the existing one
 func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
 	// Record changes
-	t.Changes = output.Changes
+	if t.Task.Changes != nil {
+		t.Task.Changes = append(t.Task.Changes, output.Changes...)
+	} else {
+		t.Task.Changes = output.Changes
+	}
 
 	followUp := TaskContainer{
 		Callback: t.Callback,
 		Key:      t.Key,
 		Task:     t.Task,
 		Parent:   t,
-		Changes:  nil, // No changes yet
 	}
 
 	// If the output contains a new Context, this is used
@@ -72,19 +75,19 @@ func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
 	return &followUp
 }
 
-func (t *TaskContainer) CollectChanges() []binding.Transformer {
-	if t.Changes != nil {
-		return append(t.getParentChanges(len(t.Changes)), t.Changes...)
-	}
-	return t.getParentChanges(0)
-}
-
-func (t *TaskContainer) getParentChanges(length int) []binding.Transformer {
-	if t.Parent == nil {
-		return make([]binding.Transformer, 0, length)
-	}
-	return append(t.Parent.getParentChanges(length+len(t.Parent.Changes)), t.Parent.Changes...)
-}
+//func (t *TaskContainer) CollectChanges() []binding.Transformer {
+//	if t.Changes != nil {
+//		return append(t.getParentChanges(len(t.Changes)), t.Changes...)
+//	}
+//	return t.getParentChanges(0)
+//}
+//
+//func (t *TaskContainer) getParentChanges(length int) []binding.Transformer {
+//	if t.Parent == nil {
+//		return make([]binding.Transformer, 0, length)
+//	}
+//	return append(t.Parent.getParentChanges(length+len(t.Parent.Changes)), t.Parent.Changes...)
+//}
 
 type TaskResult protocol.Result
 

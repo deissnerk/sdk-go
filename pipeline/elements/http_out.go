@@ -1,10 +1,13 @@
 package elements
+/*
+
+
 
 import (
 	"context"
 	"github.com/cloudevents/sdk-go/pkg/binding"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/pipeline"
+
 	http2 "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"log"
 	"net/http"
@@ -90,3 +93,4 @@ func NewHttpSender(target string, encoding cehttp.Encoding, client *http.Client)
 
 	return s, nil
 }
+*/

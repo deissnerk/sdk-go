@@ -9,7 +9,7 @@ type SupervisorOption func(*Supervisor) error
 	}
 }
 */
-func WithSplitter(ts TaskSplitter, maxWSize TaskIndex) SupervisorOption {
+/*func WithSplitter(ts TaskSplitter, maxWSize TaskIndex) SupervisorOption {
 	return func(sv *Supervisor) error {
 		sv.state = &SplitterState{
 			ts:       ts,
@@ -20,3 +20,4 @@ func WithSplitter(ts TaskSplitter, maxWSize TaskIndex) SupervisorOption {
 		return nil
 	}
 }
+*/

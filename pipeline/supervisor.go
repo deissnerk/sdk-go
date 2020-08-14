@@ -56,7 +56,7 @@ func (s *Supervisor) Start(wg *sync.WaitGroup) {
 		for {
 			if empty && stopped {
 				// No incoming events and state is idle
-				break
+				return
 			}
 			select {
 			case sm := <-s.status:
@@ -71,17 +71,11 @@ func (s *Supervisor) Start(wg *sync.WaitGroup) {
 
 	go func() {
 		defer wg.Done()
-		for {
-			select {
-			case tc, more := <-s.q:
-				if !more {
-					stopComplete <- true
-					break
-				}
-
+		for tc := range s.q {
 				s.state.AddTask(tc, s.status)
-			}
 		}
+		stopComplete <- true
+
 	}()
 }
 

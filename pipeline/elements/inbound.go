@@ -104,8 +104,13 @@ func (i *Inbound) Start(wg *sync.WaitGroup) error {
 }
 
 func (i *Inbound) Stop() {
-	i.rcvCancelFn()
-	i.sv.Stop()
+	i.startLock.Lock()
+	defer i.startLock.Unlock()
+	if i.started {
+		i.rcvCancelFn()
+		i.sv.Stop()
+		i.started = false
+	}
 }
 
 type InboundState struct {

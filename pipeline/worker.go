@@ -28,7 +28,6 @@ type Runner interface {
 type Worker struct {
 	id    ElementId
 	q     chan *TaskContainer
-	stop  chan bool
 	p     Processor
 	nStep Runner
 }
@@ -39,10 +38,9 @@ func (w *Worker) Id() ElementId {
 
 func NewWorker(p Processor, id ElementId, nextStep Runner) *Worker {
 	return &Worker{
-		id:   id,
-		q:    make(chan *TaskContainer, DefaultWS),
-		stop: make(chan bool, 1),
-		p:    p,
+		id:    id,
+		q:     make(chan *TaskContainer, DefaultWS),
+		p:     p,
 		nStep: nextStep,
 	}
 }
@@ -56,42 +54,36 @@ func (w *Worker) Push(tc *TaskContainer) {
 	}
 }
 
-func (w *Worker) Then(runner Runner) Element{
+func (w *Worker) Then(runner Runner) Element {
 	w.nStep = runner
 	return runner
 }
 
-func (w *Worker) Start(wg *sync.WaitGroup) error{
+func (w *Worker) Start(wg *sync.WaitGroup) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for {
-			select {
-			case <-w.stop:
-				return
-			case tc, more := <-w.q:
-				if !more {
-					return
-				} else {
-					// We could potentially add more sophisticated things like retry handling here
-					func() {
-						pOut := w.p.Process(&tc.Task)
-						f := true
-						if w.nStep != nil && protocol.IsACK(pOut.Result) {
-							f = false
-							w.nStep.Push(tc.FollowUp(pOut))
-						}
-						tc.SendStatusUpdate(w.id,pOut.Result,f)
-					}()
+
+		for tc := range w.q {
+			// We could potentially add more sophisticated things like retry handling here
+			func() {
+				pOut := w.p.Process(&tc.Task)
+				f := true
+				if w.nStep != nil && protocol.IsACK(pOut.Result) {
+					f = false
+					w.nStep.Push(tc.FollowUp(pOut))
 				}
-			}
+				tc.SendStatusUpdate(w.id, pOut.Result, f)
+			}()
+		}
+		if w.nStep != nil {
+			w.nStep.Stop()
 		}
 	}()
+
 	return nil
 }
 
 func (w *Worker) Stop() {
-	w.stop <- true
+	close(w.q)
 }
-
-

@@ -85,7 +85,7 @@ func NewSlidingWindow(maxWSize TaskIndex) *SlidingWindow {
 // This is not thread safe. The caller needs to lock SlidingWindow.cond.L
 func (sw *SlidingWindow) wSize() TaskIndex {
 	if sw.wStart <= sw.wEnd {
-		return sw.wEnd - sw.wStart + 1
+		return sw.wEnd - sw.wStart
 	}
-	return (sw.maxWSize - sw.wStart) + sw.wEnd + 1
+	return (sw.maxWSize - sw.wStart) + sw.wEnd
 }

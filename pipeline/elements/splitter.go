@@ -1,11 +1,10 @@
 package elements
 
 import (
+	"context"
 	"github.com/cloudevents/sdk-go/pipeline"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	"github.com/pkg/errors"
-
-	"sync"
 )
 
 type splitterTaskKey struct {
@@ -27,33 +26,48 @@ type TaskSplitter interface {
 type Splitter struct {
 	state *SplitterState
 	sv    *pipeline.Supervisor
-	//svWg   *sync.WaitGroup
-	//mainWg *sync.WaitGroup
 }
 
-func (s Splitter) Start(wg *sync.WaitGroup) {
+func NewSplitter(ts TaskSplitter, id pipeline.ElementId, nextStep pipeline.Runner) *Splitter {
+	state := &SplitterState{
+		id:       id,
+		ts:       ts,
+		sw:       pipeline.NewSlidingWindow(pipeline.DefaultWS),
+		nextStep: nextStep,
+	}
+
+	return &Splitter{
+		state: state,
+		sv:pipeline.NewSupervisor(state),
+	}
+
+}
+
+func (s Splitter) Start() error{
 	// The Supervisor will start the state and all related resources
-	s.sv.Start(wg)
+	return s.sv.Start()
 }
 
-func (s Splitter) Stop() {
-	s.sv.Stop()
+func (s Splitter) Stop(ctx context.Context) {
+	s.sv.Stop(ctx)
 }
 
 func (s Splitter) Id() pipeline.ElementId {
 	return s.state.id
 }
 
-func (s Splitter) SetNextStep(runner pipeline.Runner) {
-	s.state.SetNextStep(runner)
-}
+var _ pipeline.Element = (*Splitter)(nil)
+
+//func (s Splitter) SetNextStep(runner pipeline.Runner) {
+//	s.state.SetNextStep(runner)
+//}
 
 // The default SupervisorState implementation. It maintains a window and sets finishes a task, when all sub-tasks
 // are finished.
 type SplitterState struct {
 	id       pipeline.ElementId
 	ts       TaskSplitter
-	maxWSize pipeline.TaskIndex
+//	maxWSize pipeline.TaskIndex
 	//	wsc      WindowStateCallback
 	sw       *pipeline.SlidingWindow
 	nextStep pipeline.Runner
@@ -63,20 +77,20 @@ func (st *SplitterState) Id() pipeline.ElementId {
 	return st.id
 }
 
-func (st *SplitterState) Start(wg *sync.WaitGroup) {
-	st.ts.Start(wg)
+func (st *SplitterState) Start() error {
+	return st.ts.Start()
 }
 
 // Stop() calls Stop() on the TaskSplitter and for the next step to propagate the Stop()
 // call through the pipeline. The state is only stopped after the Supervisor was stopped. 
-func (st *SplitterState) Stop() {
-	st.ts.Stop()
-	st.nextStep.Stop()
+func (st *SplitterState) Stop(ctx context.Context) {
+	st.ts.Stop(ctx)
+//	st.nextStep.Stop()
 }
 
-func (st *SplitterState) SetNextStep(step pipeline.Runner) {
-	st.nextStep = step
-}
+//func (st *SplitterState) SetNextStep(step pipeline.Runner) {
+//	st.nextStep = step
+//}
 
 func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
 	tas := st.ts.Split(&tc.Task)
@@ -148,3 +162,5 @@ func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
 
 	return false
 }
+
+var _ pipeline.SupervisorState = (*SplitterState)(nil)

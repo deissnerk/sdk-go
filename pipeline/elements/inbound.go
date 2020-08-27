@@ -31,7 +31,7 @@ func NewInbound(handler ReceiveHandler,
 	i := &Inbound{
 		startLock: sync.Mutex{},
 		started:   false,
-		id: id,
+		id:        id,
 		sv: pipeline2.NewSupervisor(
 			&InboundState{
 				id:        id,
@@ -42,43 +42,45 @@ func NewInbound(handler ReceiveHandler,
 		rcvCtx:      rcvCtx,
 		rcvCancelFn: rcvCancelFn,
 		rcvHandler:  handler,
+		stopped:     make(chan struct{}),
 	}
 
 	return i
 }
 
 type Inbound struct {
-	startLock   sync.Mutex
-	started     bool
-//	state       *InboundState
-	id 			pipeline2.ElementId
+	startLock sync.Mutex
+	started   bool
+	//	state       *InboundState
+	id          pipeline2.ElementId
 	sv          *pipeline2.Supervisor
 	rcvCtx      context.Context
 	rcvCancelFn context.CancelFunc
 	rcvHandler  ReceiveHandler
+	stopped     chan struct{}
 }
 
 func (i *Inbound) Id() pipeline2.ElementId {
 	return i.id
 }
 
-func (i *Inbound) Start(wg *sync.WaitGroup) error {
+func (i *Inbound) Start() error {
 	i.startLock.Lock()
 	defer i.startLock.Unlock()
 	if i.started == true {
 		_, e := fmt.Printf("Already started")
 		return e
 	}
-	wg.Add(1)
-	i.sv.Start(wg)
+
+	i.sv.Start()
 
 	go func(ctx context.Context) {
-		defer wg.Done()
+		defer close(i.stopped)
 		for {
 
 			if task, err := i.rcvHandler.Receive(ctx); err != nil {
 				// Log the error? Perhaps the ReceiveHandler should do that!
-				i.Stop()
+
 				// Error handling may be difficult. When to retry and when to cancel?
 				// Encapsulate this in ReceiveHandler?
 			} else {
@@ -103,12 +105,16 @@ func (i *Inbound) Start(wg *sync.WaitGroup) error {
 
 }
 
-func (i *Inbound) Stop() {
+func (i *Inbound) Stop(ctx context.Context) {
 	i.startLock.Lock()
 	defer i.startLock.Unlock()
 	if i.started {
 		i.rcvCancelFn()
-		i.sv.Stop()
+		select {
+		case <- i.stopped:
+			case <- ctx.Done():
+		}
+		i.sv.Stop(ctx)
 		i.started = false
 	}
 }
@@ -160,11 +166,11 @@ func (iState *InboundState) IsIdle() bool {
 	return iState.sw.IsEmpty()
 }
 
-func (iState *InboundState) Start(wg *sync.WaitGroup) error {
+func (iState *InboundState) Start() error {
 	return nil
 }
 
-func (iState *InboundState) Stop() {
+func (iState *InboundState) Stop(ctx context.Context) {
 
-	iState.firstStep.Stop()
+	//	iState.firstStep.Stop()
 }

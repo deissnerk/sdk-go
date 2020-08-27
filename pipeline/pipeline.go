@@ -1,7 +1,8 @@
 package pipeline
 
 import (
-	"sync"
+	"context"
+	"time"
 )
 
 type ElementId string
@@ -11,23 +12,37 @@ type Element interface {
 	Id() ElementId
 }
 
+type Runner interface {
+	Element
+	Push(*TaskContainer)
+}
+
 type Pipeline struct {
 	Element
 	reverseElements []Element
-	wg              *sync.WaitGroup
+
 }
 
-func (p *Pipeline) Start() {
-	for _, s := range p.reverseElements {
-		s.Start(p.wg)
+func (p *Pipeline) Start() error {
+	for i, s := range p.reverseElements {
+		if err := s.Start();err != nil {
+// If the start of the current step fails, stop again the following steps, that were already started successfully.
+			if i > 0 {
+				ctx,_ := context.WithTimeout(context.Background(),time.Second)
+				p.Stop(ctx)
+			}
+			return err
+		}
 	}
+	return nil
 }
 
 // Drain drains the pipeline by shutting off inbound tasks and stopping each step
 // as soon as it contains no more pending tasks
-func (p *Pipeline) Stop() {
-	p.reverseElements[len(p.reverseElements)-1].Stop()
-	p.wg.Wait()
+func (p *Pipeline) Stop(ctx context.Context) {
+	for i:=len(p.reverseElements);i>=0; i-- {
+		p.reverseElements[i].Stop(ctx)
+	}
 }
 
 type ElementConstructor func(nextStep Runner) Element
@@ -73,6 +88,5 @@ func (pb *PipelineBuilder) Build() *Pipeline {
 
 	return &Pipeline{
 		reverseElements: reverseElements,
-		wg:              &sync.WaitGroup{},
 	}
 }

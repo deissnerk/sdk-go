@@ -17,3 +17,9 @@ func Process(p pipeline.Processor, id pipeline.ElementId) pipeline.ElementConstr
 		return pipeline.NewWorker(p,id,nextStep)
 	}
 }
+
+func Split(ts TaskSplitter, id pipeline.ElementId) pipeline.ElementConstructor{
+	return func(nextStep pipeline.Runner) pipeline.Element {
+		return NewSplitter(ts,id,nextStep)
+	}
+}

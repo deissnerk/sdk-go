@@ -1,5 +1,8 @@
-package main
+package impl
 
+
+
+/*
 import (
 	"fmt"
 	"github.com/cloudevents/sdk-go/pipeline"
@@ -58,3 +61,4 @@ func NewRandomRouter(senders []*elements.HttpSender, cfg *config.Config) *Random
 
 	return dr
 }
+*/

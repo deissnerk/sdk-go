@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
-	"sync"
+
 )
 
 var _ Runner = (*Worker)(nil)
@@ -20,16 +20,12 @@ type Processor interface {
 	Process(*Task) *ProcessorOutput
 }
 
-type Runner interface {
-	Element
-	Push(*TaskContainer)
-}
-
 type Worker struct {
 	id    ElementId
 	q     chan *TaskContainer
 	p     Processor
 	nStep Runner
+	stopped chan struct{}
 }
 
 func (w *Worker) Id() ElementId {
@@ -42,6 +38,7 @@ func NewWorker(p Processor, id ElementId, nextStep Runner) *Worker {
 		q:     make(chan *TaskContainer, DefaultWS),
 		p:     p,
 		nStep: nextStep,
+		stopped: make(chan struct{}),
 	}
 }
 
@@ -59,10 +56,10 @@ func (w *Worker) Then(runner Runner) Element {
 	return runner
 }
 
-func (w *Worker) Start(wg *sync.WaitGroup) error {
-	wg.Add(1)
+func (w *Worker) Start() error {
+
 	go func() {
-		defer wg.Done()
+		defer close(w.stopped)
 
 		for tc := range w.q {
 			// We could potentially add more sophisticated things like retry handling here
@@ -76,14 +73,20 @@ func (w *Worker) Start(wg *sync.WaitGroup) error {
 				tc.SendStatusUpdate(w.id, pOut.Result, f)
 			}()
 		}
-		if w.nStep != nil {
-			w.nStep.Stop()
-		}
+		//if w.nStep != nil {
+		//	w.nStep.Stop()
+		//}
 	}()
 
 	return nil
 }
 
-func (w *Worker) Stop() {
+func (w *Worker) Stop(ctx context.Context) {
 	close(w.q)
+	select {
+	case <-ctx.Done():
+
+
+	case <-w.stopped:
+	}
 }

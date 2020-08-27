@@ -1,8 +1,10 @@
 package pipeline
 
-import "sync"
+import (
+	"context"
+)
 
 type StartStop interface {
-	Start(wg *sync.WaitGroup) error
-	Stop()
+	Start() error
+	Stop(ctx context.Context)
 }

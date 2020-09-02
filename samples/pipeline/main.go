@@ -13,10 +13,6 @@ import (
 	"log"
 )
 
-var (
-)
-
-
 func main() {
 	// Create AMQP client
 

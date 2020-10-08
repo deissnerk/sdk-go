@@ -16,12 +16,6 @@ const (
 	DefaultWS TaskIndex = 8
 )
 
-type TaskAssignment struct {
-	Task   *Task
-	Runner Runner
-	Cancel context.CancelFunc
-}
-
 type SuperVisorTask struct {
 	Main *TaskContainer
 	//	TStat []*TaskStatus
@@ -38,7 +32,7 @@ func (s *Supervisor) Push(tc *TaskContainer) {
 }
 
 func (s *Supervisor) Start() error{
-	//	s.state.Start(wg)
+	s.state.Start()
 	s.q = make(chan *TaskContainer, DefaultWS)
 	s.status = make(chan *StatusMessage, DefaultWS*8) //8 is just a wild guess right now
 

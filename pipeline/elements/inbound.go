@@ -3,8 +3,8 @@ package elements
 import (
 	"context"
 	"fmt"
-	"github.com/cloudevents/sdk-go/v2/binding"
 	pipeline2 "github.com/cloudevents/sdk-go/pipeline"
+	"github.com/cloudevents/sdk-go/v2/binding"
 	"sync"
 )
 

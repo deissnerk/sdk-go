@@ -6,20 +6,38 @@ import (
 )
 
 func CreateInbound(handler ReceiveHandler,parentCtx context.Context,id pipeline.ElementId) pipeline.ElementConstructor{
-	return func(nextStep pipeline.Runner) pipeline.Element {
-		return NewInbound(handler,parentCtx,id, nextStep)
-
+	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
+		return NewInbound(handler,parentCtx,id, nextStep),nil
 	}
 }
 
-func Process(p pipeline.Processor, id pipeline.ElementId) pipeline.ElementConstructor {
-	return func(nextStep pipeline.Runner) pipeline.Element {
-		return pipeline.NewWorker(p,id,nextStep)
+func Process(pc pipeline.ProcessorConstructor, id pipeline.ElementId) pipeline.ElementConstructor {
+	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
+		p,err := pc()
+		if err != nil {
+			return nil, err
+		}
+		return pipeline.NewWorker(p,id,nextStep),nil
 	}
 }
 
-func Split(ts TaskSplitter, id pipeline.ElementId) pipeline.ElementConstructor{
-	return func(nextStep pipeline.Runner) pipeline.Element {
-		return NewSplitter(ts,id,nextStep)
+func Use(pc pipeline.ProcessorFuncConstructor, id pipeline.ElementId) pipeline.ElementConstructor {
+	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
+		p,err := pc()
+		if err != nil {
+			return nil, err
+		}
+		return pipeline.NewWorker(p,id,nextStep),nil
 	}
 }
+
+func Split(sc SplitterConstructor, id pipeline.ElementId) pipeline.ElementConstructor{
+	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
+		sc,err := sc()
+		if err != nil {
+			return nil, err
+		}
+		return NewSplitterRunner(sc,id,nextStep)
+	}
+}
+

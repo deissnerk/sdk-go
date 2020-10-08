@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 )
@@ -31,20 +32,18 @@ type TaskContainer struct {
 }
 
 func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bool) {
-	if t.Callback == nil {
-		if t.Parent != nil {
-			t.Parent.SendStatusUpdate(id, r, finished)
-		}
-	} else {
-		t.Callback <- &StatusMessage{
+	if t.Callback != nil {
+		sm := &StatusMessage{
 			Key: t.Key,
 			Status: TaskStatus{
 				Id: id,
 				//			Ref:      t,
 				Result:   r,
 				Finished: finished,
-			},
-		}
+			}}
+		fmt.Printf("Send Update %+v\n",sm)
+		t.Callback <- sm
+
 	}
 }
 
@@ -52,8 +51,8 @@ func (t *TaskContainer) SendCancelledUpdate() {
 	t.SendStatusUpdate("", TaskCancelledError{Err: t.Task.Context.Err()}, false)
 }
 
-// FollowUp() returns a new TaskContainer that is a follow-up to the existing one
-func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
+// AddOutput() uses ProcessorOutput to adjust the TaskContainer for the next step
+func (t *TaskContainer) AddOutput(output *ProcessorOutput) {
 	// Record changes
 	if t.Task.Changes != nil {
 		t.Task.Changes = append(t.Task.Changes, output.Changes...)
@@ -61,18 +60,10 @@ func (t *TaskContainer) FollowUp(output *ProcessorOutput) *TaskContainer {
 		t.Task.Changes = output.Changes
 	}
 
-	followUp := TaskContainer{
-		Callback: t.Callback,
-		Key:      t.Key,
-		Task:     t.Task,
-		Parent:   t,
-	}
-
 	// If the output contains a new Context, this is used
 	if output.FollowUp != nil {
-		followUp.Task.Context = output.FollowUp
+		t.Task.Context = output.FollowUp
 	}
-	return &followUp
 }
 
 //func (t *TaskContainer) CollectChanges() []binding.Transformer {

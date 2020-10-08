@@ -74,6 +74,7 @@ func SetupAMQPLink() (*AMQPReceiveHandler,error){
 	}
 
 	receiver, err = session.NewReceiver(amqp.LinkSourceAddress("test"))
+
 	if err != nil {
 		return nil,err
 	}

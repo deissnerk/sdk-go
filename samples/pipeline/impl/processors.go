@@ -7,11 +7,14 @@ import (
 	"github.com/cloudevents/sdk-go/v2/protocol"
 )
 
-type EventEnricher struct{}
+type EventEnricher struct{
+	Name string
+	Value string
+}
 
 func (ee *EventEnricher) Process(t *pipeline.Task) *pipeline.ProcessorOutput {
 	//	binding.TransformerFunc()
-	tr := transformer.AddExtension("myextension", "bla")
+	tr := transformer.AddExtension(ee.Name, ee.Value)
 	ts := make([]binding.Transformer, 1)
 	ts[0] = tr
 
@@ -31,5 +34,9 @@ func (ces *CeSender) Process(t *pipeline.Task) *pipeline.ProcessorOutput {
 		Changes:  nil,
 	}
 }
+
+type Counter struct{}
+
+
 
 

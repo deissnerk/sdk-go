@@ -7,28 +7,49 @@ import (
 	"github.com/pkg/errors"
 )
 
+
+type TaskAssignment struct {
+	Task   *pipeline.Task
+	Runner pipeline.Runner
+	Cancel context.CancelFunc
+}
+
+
 type splitterTaskKey struct {
 	key    pipeline.TaskIndex
 	subKey pipeline.TaskIndex
 }
 
-type TaskSplitter interface {
-	Split(origin *pipeline.Task) []*pipeline.TaskAssignment
+type splitterTaskStatus struct {
+	j Joiner
+	tc []*pipeline.TaskControl
+}
 
-	// Take the status of all sub-tasks
-	Join(status []*pipeline.TaskControl) *pipeline.ProcessorOutput
-
-	IsFinished(status []*pipeline.TaskControl) bool
+type Splitter interface {
+	Split(origin *pipeline.Task) ([]*TaskAssignment,Joiner)
 
 	pipeline.StartStop
 }
 
-type Splitter struct {
+type Joiner interface {
+	// Take the status of all sub-tasks
+	Join(status []*pipeline.TaskControl) *pipeline.ProcessorOutput
+
+	IsFinished(status []*pipeline.TaskControl) bool
+}
+
+type SplitterConstructor func() (Splitter,error)
+
+type SplitterRunner struct {
 	state *SplitterState
 	sv    *pipeline.Supervisor
 }
 
-func NewSplitter(ts TaskSplitter, id pipeline.ElementId, nextStep pipeline.Runner) *Splitter {
+func (s *SplitterRunner) Push(tc *pipeline.TaskContainer) {
+	s.sv.Push(tc)
+}
+
+func NewSplitterRunner(ts Splitter, id pipeline.ElementId, nextStep pipeline.Runner) (*SplitterRunner,error) {
 	state := &SplitterState{
 		id:       id,
 		ts:       ts,
@@ -36,37 +57,37 @@ func NewSplitter(ts TaskSplitter, id pipeline.ElementId, nextStep pipeline.Runne
 		nextStep: nextStep,
 	}
 
-	return &Splitter{
+	return &SplitterRunner{
 		state: state,
 		sv:pipeline.NewSupervisor(state),
-	}
+	},nil
 
 }
 
-func (s Splitter) Start() error{
+func (s SplitterRunner) Start() error{
 	// The Supervisor will start the state and all related resources
 	return s.sv.Start()
 }
 
-func (s Splitter) Stop(ctx context.Context) {
+func (s SplitterRunner) Stop(ctx context.Context) {
 	s.sv.Stop(ctx)
 }
 
-func (s Splitter) Id() pipeline.ElementId {
+func (s SplitterRunner) Id() pipeline.ElementId {
 	return s.state.id
 }
 
-var _ pipeline.Element = (*Splitter)(nil)
+var _ pipeline.Runner = (*SplitterRunner)(nil)
 
-//func (s Splitter) SetNextStep(runner pipeline.Runner) {
+//func (s SplitterRunner) SetNextStep(runner pipeline.Runner) {
 //	s.state.SetNextStep(runner)
 //}
 
 // The default SupervisorState implementation. It maintains a window and sets finishes a task, when all sub-tasks
 // are finished.
 type SplitterState struct {
-	id       pipeline.ElementId
-	ts       TaskSplitter
+	id pipeline.ElementId
+	ts Splitter
 //	maxWSize pipeline.TaskIndex
 	//	wsc      WindowStateCallback
 	sw       *pipeline.SlidingWindow
@@ -81,7 +102,7 @@ func (st *SplitterState) Start() error {
 	return st.ts.Start()
 }
 
-// Stop() calls Stop() on the TaskSplitter and for the next step to propagate the Stop()
+// Stop() calls Stop() on the Splitter and for the next step to propagate the Stop()
 // call through the pipeline. The state is only stopped after the Supervisor was stopped. 
 func (st *SplitterState) Stop(ctx context.Context) {
 	st.ts.Stop(ctx)
@@ -93,20 +114,21 @@ func (st *SplitterState) Stop(ctx context.Context) {
 //}
 
 func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
-	tas := st.ts.Split(&tc.Task)
+	tas,j := st.ts.Split(&tc.Task)
 
 	if len(tas) == 0 {
-		tc.SendStatusUpdate(st.id, errors.Errorf("TaskSplitter returned no tasks"), true)
+		tc.SendStatusUpdate(st.id, errors.Errorf("Splitter returned no tasks"), true)
 		return
 	}
 	svt, key := st.sw.AddTask()
 
-	tStat := make([]*pipeline.TaskControl, len(tas))
+	stc := make([]*pipeline.TaskControl, len(tas))
 
 	for i, ta := range tas {
-		tStat[i] = &pipeline.TaskControl{
+		id := ta.Runner.Id()
+		stc[i] = &pipeline.TaskControl{
 			Status: pipeline.TaskStatus{
-				Id: ta.Runner.Id(),
+				Id: id,
 				//Key: splitterTaskKey{
 				//	key:    key,
 				//	subKey: pipeline.TaskIndex(i),
@@ -120,7 +142,10 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 
 	*svt = pipeline.SuperVisorTask{
 		Main:  tc,
-		TStat: tStat,
+		TStat: &splitterTaskStatus{
+			j:  j,
+			tc: stc,
+		},
 	}
 
 	for i, ta := range tas {
@@ -145,15 +170,16 @@ func (st *SplitterState) IsIdle() bool {
 func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
 	tKey := sMsg.Key.(splitterTaskKey)
 	svt := st.sw.GetSupervisorTask(tKey.key)
-	tStat := svt.TStat.([]*pipeline.TaskControl)
-	tStat[tKey.subKey].Status = sMsg.Status
+	tStat := svt.TStat.(*splitterTaskStatus)
+	tStat.tc[tKey.subKey].Status = sMsg.Status
 
-	if st.ts.IsFinished(tStat) {
-		joinStat := st.ts.Join(tStat)
+	if tStat.j.IsFinished(tStat.tc) {
+		joinStat := tStat.j.Join(tStat.tc)
 		if st.nextStep != nil && protocol.IsACK(joinStat.Result) {
 			// If there is a next step, push the main task to it and send the result as a status update
 			svt.Main.SendStatusUpdate(st.id, joinStat.Result, false)
-			st.nextStep.Push(svt.Main.FollowUp(joinStat))
+			svt.Main.AddOutput(joinStat)
+			st.nextStep.Push(svt.Main)
 		} else {
 			svt.Main.SendStatusUpdate(st.id, joinStat.Result, true)
 		}

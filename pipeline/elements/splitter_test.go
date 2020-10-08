@@ -9,7 +9,7 @@ import (
 func TestSplitterState_AddTask(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner
@@ -43,7 +43,7 @@ func TestSplitterState_AddTask(t *testing.T) {
 func TestSplitterState_IsIdle(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner
@@ -76,7 +76,7 @@ func TestSplitterState_IsIdle(t *testing.T) {
 func TestSplitterState_SetNextStep(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner
@@ -109,7 +109,7 @@ func TestSplitterState_SetNextStep(t *testing.T) {
 func TestSplitterState_Start(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner
@@ -142,7 +142,7 @@ func TestSplitterState_Start(t *testing.T) {
 func TestSplitterState_Stop(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner
@@ -171,7 +171,7 @@ func TestSplitterState_Stop(t *testing.T) {
 func TestSplitterState_UpdateTask(t *testing.T) {
 	type fields struct {
 		id          pipeline2.ElementId
-		ts          TaskSplitter
+		ts          Splitter
 		maxWSize    pipeline2.TaskIndex
 		sw          *pipeline2.SlidingWindow
 		nextStep    pipeline2.Runner

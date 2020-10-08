@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
-
 )
 
 var _ Runner = (*Worker)(nil)
@@ -19,6 +18,15 @@ type ProcessorOutput struct {
 type Processor interface {
 	Process(*Task) *ProcessorOutput
 }
+// ProcessorFunc is a type alias to implement a Processor through a function pointer
+type ProcessorFunc func(*Task) *ProcessorOutput
+
+func (pf ProcessorFunc) Process(t *Task) *ProcessorOutput {
+	return pf(t)
+}
+
+type ProcessorConstructor func() (Processor,error)
+type ProcessorFuncConstructor func() (ProcessorFunc, error)
 
 type Worker struct {
 	id    ElementId
@@ -65,12 +73,16 @@ func (w *Worker) Start() error {
 			// We could potentially add more sophisticated things like retry handling here
 			func() {
 				pOut := w.p.Process(&tc.Task)
-				f := true
-				if w.nStep != nil && protocol.IsACK(pOut.Result) {
-					f = false
-					w.nStep.Push(tc.FollowUp(pOut))
+				if pOut == nil {
+					pOut = &ProcessorOutput{}
 				}
-				tc.SendStatusUpdate(w.id, pOut.Result, f)
+				if w.nStep != nil && protocol.IsACK(pOut.Result) {
+					tc.SendStatusUpdate(w.id, pOut.Result, false)
+					tc.AddOutput(pOut)
+					w.nStep.Push(tc)
+				}else {
+					tc.SendStatusUpdate(w.id, pOut.Result, true)
+				}
 			}()
 		}
 		//if w.nStep != nil {

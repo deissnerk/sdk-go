@@ -31,6 +31,27 @@ func main() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+	httpProtocol,err := http.New(http.WithPort(8083))
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	httpRcvHandler := impl.NewSdkReceiver(httpProtocol,httpProtocol)
+
+	httpPb := &pipeline.PipelineBuilder{}
+	httpPb.Then(elements.CreateInbound(httpRcvHandler, context.Background(), "Inbound")).
+		Then(elements.Process(func() (pipeline.Processor, error) {
+			return &impl.EventEnricher{
+				Name:  "step1",
+				Value: "EventEnricher",
+			}, nil
+		}, "Enricher")).
+		//		Then(elements.Split(&impl.SampleSplitter{},"SplitterRunner")).
+		Then(impl.Split()).
+		Then(elements.Process(func() (pipeline.Processor, error) {
+			return &impl.CeSender{sender}, nil
+		}, "Sender"))
+	httpPipe, err := httpPb.Build()
+	httpPipe.Start()
 
 	pb := &pipeline.PipelineBuilder{}
 	pb.Then(elements.CreateInbound(handler, context.Background(), "Inbound")).
@@ -46,6 +67,8 @@ func main() {
 			return &impl.CeSender{sender}, nil
 		}, "Sender"))
 	pipe, err := pb.Build()
+
+
 	if err == nil {
 		pipe.Start()
 
@@ -55,6 +78,7 @@ func main() {
 		close(c)
 		stopCtx, _ := context.WithTimeout(context.Background(), time.Second*10)
 		pipe.Stop(stopCtx)
+		httpPipe.Stop(stopCtx)
 	} else {
 		log.Fatalf(err.Error())
 	}

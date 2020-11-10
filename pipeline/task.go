@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 )
@@ -41,14 +40,16 @@ func (t *TaskContainer) SendStatusUpdate(id ElementId, r TaskResult, finished bo
 				Result:   r,
 				Finished: finished,
 			}}
-		fmt.Printf("Send Update %+v\n",sm)
 		t.Callback <- sm
 
 	}
 }
 
 func (t *TaskContainer) SendCancelledUpdate() {
-	t.SendStatusUpdate("", TaskCancelledError{Err: t.Task.Context.Err()}, false)
+	t.SendStatusUpdate("", TaskResult{
+		Error:  TaskCancelledError{Err: t.Task.Context.Err()},
+		Result: nil,
+	}, false)
 }
 
 // AddOutput() uses ProcessorOutput to adjust the TaskContainer for the next step
@@ -80,7 +81,11 @@ func (t *TaskContainer) AddOutput(output *ProcessorOutput) {
 //	return append(t.Parent.getParentChanges(length+len(t.Parent.Changes)), t.Parent.Changes...)
 //}
 
-type TaskResult protocol.Result
+// This is all quite strange. protocol.Receipt and protocol.Error are not clearly defined.
+type TaskResult struct {
+	Error  protocol.Result
+	Result interface{}
+}
 
 type TaskStatus struct {
 	Id ElementId

@@ -117,7 +117,10 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 	tas,j := st.ts.Split(&tc.Task)
 
 	if len(tas) == 0 {
-		tc.SendStatusUpdate(st.id, errors.Errorf("Splitter returned no tasks"), true)
+		tc.SendStatusUpdate(st.id, pipeline.TaskResult{
+			Error:  errors.Errorf("Splitter returned no tasks"),
+			Result: nil,
+		}, true)
 		return
 	}
 	svt, key := st.sw.AddTask()
@@ -133,7 +136,6 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 				//	key:    key,
 				//	subKey: pipeline.TaskIndex(i),
 				//},
-				Result:   nil,
 				Finished: false,
 			},
 			Cancel: ta.Cancel,
@@ -175,7 +177,7 @@ func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
 
 	if tStat.j.IsFinished(tStat.tc) {
 		joinStat := tStat.j.Join(tStat.tc)
-		if st.nextStep != nil && protocol.IsACK(joinStat.Result) {
+		if st.nextStep != nil && protocol.IsACK(joinStat.Result.Error) {
 			// If there is a next step, push the main task to it and send the result as a status update
 			svt.Main.SendStatusUpdate(st.id, joinStat.Result, false)
 			svt.Main.AddOutput(joinStat)

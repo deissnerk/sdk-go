@@ -140,7 +140,7 @@ func (iState *InboundState) AddTask(tc *pipeline2.TaskContainer, callback chan *
 		TStat: pipeline2.TaskControl{
 			Status: pipeline2.TaskStatus{
 				Id:       iState.id,
-				Result:   nil,
+				Result:   pipeline2.TaskResult{},
 				Finished: false,
 			},
 			Cancel: cancel,
@@ -167,10 +167,14 @@ func (iState *InboundState) IsIdle() bool {
 }
 
 func (iState *InboundState) Start() error {
+	if startStop,ok := iState.rh.(pipeline2.StartStop);ok {
+		return startStop.Start()
+	}
 	return nil
 }
 
 func (iState *InboundState) Stop(ctx context.Context) {
-
-	//	iState.firstStep.Stop()
+	if startStop,ok := iState.rh.(pipeline2.StartStop);ok {
+		startStop.Stop(ctx)
+	}
 }

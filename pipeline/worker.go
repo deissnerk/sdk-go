@@ -14,6 +14,7 @@ type ProcessorOutput struct {
 	Changes  []binding.Transformer
 }
 
+
 // TODO Needs to be closed/stopped?
 type Processor interface {
 	Process(*Task) *ProcessorOutput
@@ -76,7 +77,7 @@ func (w *Worker) Start() error {
 				if pOut == nil {
 					pOut = &ProcessorOutput{}
 				}
-				if w.nStep != nil && protocol.IsACK(pOut.Result) {
+				if w.nStep != nil && protocol.IsACK(pOut.Result.Error) {
 					tc.SendStatusUpdate(w.id, pOut.Result, false)
 					tc.AddOutput(pOut)
 					w.nStep.Push(tc)

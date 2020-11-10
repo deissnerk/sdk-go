@@ -5,6 +5,7 @@ import (
 	"github.com/cloudevents/sdk-go/pipeline"
 )
 
+// TODO Add ReceiveHandlerConstructor
 func CreateInbound(handler ReceiveHandler,parentCtx context.Context,id pipeline.ElementId) pipeline.ElementConstructor{
 	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
 		return NewInbound(handler,parentCtx,id, nextStep),nil

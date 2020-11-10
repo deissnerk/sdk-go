@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/cloudevents/sdk-go/pipeline"
 	"github.com/cloudevents/sdk-go/pipeline/elements"
+	"github.com/cloudevents/sdk-go/v2/binding"
+	"github.com/cloudevents/sdk-go/v2/binding/transformer"
 )
 
 type SampleSplitter struct {
@@ -44,12 +46,14 @@ type sampleJoiner struct {
 }
 
 func (j *sampleJoiner) Join(status []*pipeline.TaskControl) *pipeline.ProcessorOutput {
-
+	tr := transformer.AddExtension("sourcelength", status[1].Status.Result.Result)
+	ts := make([]binding.Transformer, 1)
+	ts[0] = tr
 
 	return &pipeline.ProcessorOutput{
-		Result:   nil,
+		Result: pipeline.TaskResult{},
 		FollowUp: nil,
-		Changes:  nil,
+		Changes:  ts,
 	}
 
 }
@@ -83,7 +87,10 @@ func Split() pipeline.ElementConstructor {
 		return func(t *pipeline.Task) (*pipeline.ProcessorOutput) {
 			counter++
 			return &pipeline.ProcessorOutput{
-				Result:   nil,
+				Result:   pipeline.TaskResult{
+					Error:  nil,
+					Result: counter,
+				},
 				FollowUp: nil,
 				Changes:  nil,
 			}
@@ -92,10 +99,7 @@ func Split() pipeline.ElementConstructor {
 
 	pbB := pipeline.PipelineBuilder{}
 	pbB.Then(elements.Process(func() (pipeline.Processor,error){
-		return &EventEnricher{
-			Name:  "pipebstep1",
-			Value: "enrich",
-		},nil
+		return &SourceLengthCalculator{},nil
 	},"pipeB, step 1"))
 
 	return elements.Split(func() (elements.Splitter, error) {

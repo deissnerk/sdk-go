@@ -13,25 +13,7 @@ type SourceLengthCalculator struct {
 }
 
 func (ac *SourceLengthCalculator) Process(t *pipeline.Task) *pipeline.ProcessorOutput{
- 
-	mr,ok := t.Event.(binding.MessageMetadataReader)
-	if !ok {
-		e,err := binding.ToEvent(t.Context,t.Event,nil)
-		if err == nil {
-			mr = binding.ToMessage(e).(binding.MessageMetadataReader)
-		} else {
-			return &pipeline.ProcessorOutput{
-				Result:   pipeline.TaskResult{
-					Error:  err,
-					Result: nil,
-				},
-				FollowUp: nil,
-				Changes:  nil,
-			}
-		}
-	}
-
-	_,attr := mr.GetAttribute(spec.Source)
+	_,attr := t.GetAttribute(spec.Source)
 	src := attr.(string)
 	return &pipeline.ProcessorOutput{
 		Result:   pipeline.TaskResult{
@@ -68,7 +50,8 @@ type CeSender struct {
 func (ces *CeSender) Process(t *pipeline.Task) *pipeline.ProcessorOutput {
 	return &pipeline.ProcessorOutput{
 		Result:   pipeline.TaskResult{
-			Error:  ces.Send(t.Context, t.Event, t.Changes...),
+//			Error:  ces.Send(t.Context(), buffering.WithAcksBeforeFinish(t,2), t.Changes()...),
+			Error:  ces.Send(t.Context(), t, t.Changes()...),
 			Result: nil,
 		},
 		FollowUp: nil,

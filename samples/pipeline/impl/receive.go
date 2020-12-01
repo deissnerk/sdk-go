@@ -25,17 +25,17 @@ type AMQPReceiveHandler struct {
 	receiver *amqp.Receiver
 }
 
-func (ah *AMQPReceiveHandler) HandleResult(event binding.Message, tc *pipeline.TaskControl) bool {
-	if tc.Status.Result.Error != nil {
-		log.Printf("Element: %s, Error: %s\n", tc.Status.Id, tc.Status.Result.Error.Error())
+func (ah *AMQPReceiveHandler) HandleResult(event binding.Message, tc *pipeline.TaskStatus) bool {
+	if tc.Result.Error != nil {
+		log.Printf("Element: %s, Error: %s\n", tc.Id, tc.Result.Error.Error())
 	}
-	if tc.Status.Finished {
+	if tc.Finished {
 
 		msg := event.(*amqp2.Message)
-		if protocol.IsNACK(tc.Status.Result.Error) {
+		if protocol.IsNACK(tc.Result.Error) {
 			msg.AMQP.Reject(&amqp.Error{
 				Condition:   amqp.ErrorInternalError,
-				Description: tc.Status.Result.Error.Error(),
+				Description: tc.Result.Error.Error(),
 				Info:        nil,
 			})
 		} else {
@@ -45,18 +45,14 @@ func (ah *AMQPReceiveHandler) HandleResult(event binding.Message, tc *pipeline.T
 	return false
 }
 
-func (ah *AMQPReceiveHandler) Receive(ctx context.Context) (*pipeline.Task, error) {
+func (ah *AMQPReceiveHandler) Receive(ctx context.Context) (binding.Message, error) {
 	m, err := ah.receiver.Receive(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &pipeline.Task{
-		Context: context.TODO(),
-		Event:   amqp2.NewMessage(m),
-		Changes: nil,
-	}, nil
+	return amqp2.NewMessage(m),nil
 }
 
 func SetupAMQPLink() (*AMQPReceiveHandler, error) {
@@ -110,21 +106,16 @@ func (sr *SdkReceiver) Stop(ctx context.Context) {
 	}
 }
 
-func (sr *SdkReceiver) HandleResult(event binding.Message, ts *pipeline.TaskControl) bool {
-	if ts.Status.Finished {
-		event.Finish(ts.Status.Result.Error)
+func (sr *SdkReceiver) HandleResult(event binding.Message, ts *pipeline.TaskStatus) bool {
+	if ts.Finished {
+//		event.Finish(ts.Result.Error)
 		return true
 	}
 	return false
 }
 
-func (sr *SdkReceiver) Receive(ctx context.Context) (*pipeline.Task, error) {
-	m,err := sr.receiver.Receive(ctx)
-	return &pipeline.Task{
-		Context: context.TODO(),
-		Event:   m,
-		Changes: nil,
-	},err
+func (sr *SdkReceiver) Receive(ctx context.Context) (binding.Message, error) {
+	return sr.receiver.Receive(ctx)
 }
 
 func NewSdkReceiver(o protocol.Opener, r protocol.Receiver) *SdkReceiver {

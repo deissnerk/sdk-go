@@ -55,7 +55,7 @@ func (w *Worker) Push(tc *TaskContainer) {
 	select {
 	case w.q <- tc:
 		return
-	case <-tc.Task.Context.Done():
+	case <-tc.Task.Context().Done():
 		tc.SendCancelledUpdate()
 	}
 }
@@ -73,7 +73,7 @@ func (w *Worker) Start() error {
 		for tc := range w.q {
 			// We could potentially add more sophisticated things like retry handling here
 			func() {
-				pOut := w.p.Process(&tc.Task)
+				pOut := w.p.Process(tc.Task)
 				if pOut == nil {
 					pOut = &ProcessorOutput{}
 				}

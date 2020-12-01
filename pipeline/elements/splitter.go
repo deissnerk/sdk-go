@@ -114,7 +114,7 @@ func (st *SplitterState) Stop(ctx context.Context) {
 //}
 
 func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipeline.StatusMessage) {
-	tas,j := st.ts.Split(&tc.Task)
+	tas,j := st.ts.Split(tc.Task)
 
 	if len(tas) == 0 {
 		tc.SendStatusUpdate(st.id, pipeline.TaskResult{
@@ -151,17 +151,21 @@ func (st *SplitterState) AddTask(tc *pipeline.TaskContainer, callback chan *pipe
 	}
 
 	for i, ta := range tas {
-		ta.Runner.Push(
-			&pipeline.TaskContainer{
-				Callback: callback,
-				Key: splitterTaskKey{
-					key:    key,
-					subKey: pipeline.TaskIndex(i),
-				},
-				Task:    *ta.Task,
-				Parent:  tc,
-			})
+		ta.Runner.Push(tc.NewChild(callback,splitterTaskKey{key:key,subKey: pipeline.TaskIndex(i)},ta.Task))
 	}
+
+	//for i, ta := range tas {
+	//	ta.Runner.Push(
+	//		&pipeline.TaskContainer{
+	//			Callback: callback,
+	//			Key: splitterTaskKey{
+	//				key:    key,
+	//				subKey: pipeline.TaskIndex(i),
+	//			},
+	//			Task:    *ta.Task,
+	//			Parent:  tc,
+	//		})
+	//}
 }
 
 func (st *SplitterState) IsIdle() bool {

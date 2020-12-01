@@ -26,7 +26,7 @@ func (s *Supervisor) Push(tc *TaskContainer) {
 	select {
 	case s.q <- tc:
 		return
-	case <-tc.Task.Context.Done():
+	case <-tc.Task.Context().Done():
 		tc.SendCancelledUpdate()
 	}
 }

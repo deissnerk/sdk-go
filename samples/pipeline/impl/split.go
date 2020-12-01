@@ -16,26 +16,15 @@ type SampleSplitter struct {
 func (s SampleSplitter) Split(origin *pipeline.Task) ([]*elements.TaskAssignment,elements.Joiner) {
 	ret := make([]*elements.TaskAssignment, 2)
 
-	ctxA, cancelA := context.WithCancel(origin.Context)
+
 	ret[0] = &elements.TaskAssignment{
-		Task: &pipeline.Task{
-			Context: ctxA,
-			Event:   origin.Event,
-			Changes: nil,
-		},
+		Task: origin.NewSubTask(),
 		Runner: s.pipeA,
-		Cancel: cancelA,
 	}
 
-	ctxB, cancelB := context.WithCancel(origin.Context)
 	ret[1] = &elements.TaskAssignment{
-		Task: &pipeline.Task{
-			Context: ctxB,
-			Event:   origin.Event,
-			Changes: nil,
-		},
+		Task: origin.NewSubTask(),
 		Runner: s.pipeB,
-		Cancel: cancelB,
 	}
 
 	return ret,&sampleJoiner{}

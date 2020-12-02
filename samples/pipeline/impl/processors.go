@@ -3,6 +3,7 @@ package impl
 import (
 	"github.com/cloudevents/sdk-go/pipeline"
 	"github.com/cloudevents/sdk-go/v2/binding"
+	"github.com/cloudevents/sdk-go/v2/binding/buffering"
 	"github.com/cloudevents/sdk-go/v2/binding/spec"
 	"github.com/cloudevents/sdk-go/v2/binding/transformer"
 	"github.com/cloudevents/sdk-go/v2/protocol"
@@ -50,8 +51,7 @@ type CeSender struct {
 func (ces *CeSender) Process(t *pipeline.Task) *pipeline.ProcessorOutput {
 	return &pipeline.ProcessorOutput{
 		Result:   pipeline.TaskResult{
-//			Error:  ces.Send(t.Context(), buffering.WithAcksBeforeFinish(t,2), t.Changes()...),
-			Error:  ces.Send(t.Context(), t, t.Changes()...),
+			Error:  ces.Send(t.Context(), buffering.WithAcksBeforeFinish(t,2), t.Changes()...),
 			Result: nil,
 		},
 		FollowUp: nil,

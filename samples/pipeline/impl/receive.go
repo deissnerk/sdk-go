@@ -5,6 +5,7 @@ import (
 	"github.com/Azure/go-amqp"
 	"github.com/cloudevents/sdk-go/pipeline"
 	amqp2 "github.com/cloudevents/sdk-go/protocol/amqp/v2"
+	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/binding"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	"log"
@@ -108,7 +109,11 @@ func (sr *SdkReceiver) Stop(ctx context.Context) {
 
 func (sr *SdkReceiver) HandleResult(event binding.Message, ts *pipeline.TaskStatus) bool {
 	if ts.Finished {
-//		event.Finish(ts.Result.Error)
+		if v2.IsACK(ts.Result.Error){
+			event.Finish(nil)
+		} else {
+			event.Finish(ts.Result.Error)
+		}
 		return true
 	}
 	return false

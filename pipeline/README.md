@@ -19,14 +19,6 @@ A task encapsulates the information that is passed between event processors
  changes preceding processors have already added. For the event the original
   `binding.Message` is used to allow highly optimized flows.   
 
-```
-type Task struct {
-	Context context.Context
-	Event   binding.Message
-	Changes []binding.Transformer
-}
-```
-
 ### Processors
 A processor takes a `Task` as input and returns a `ProcessorOutput`:
 ```

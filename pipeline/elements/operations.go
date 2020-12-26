@@ -6,9 +6,9 @@ import (
 )
 
 // TODO Add ReceiveHandlerConstructor
-func CreateInbound(handler ReceiveHandler,parentCtx context.Context,id pipeline.ElementId) pipeline.ElementConstructor{
+func CreateInbound(handler ResultHandler,receiver Receiver, parentCtx context.Context,id pipeline.ElementId) pipeline.ElementConstructor{
 	return func(nextStep pipeline.Runner) (pipeline.Element,error) {
-		return NewInbound(handler,parentCtx,id, nextStep),nil
+		return NewInbound(handler,receiver,parentCtx,id, nextStep),nil
 	}
 }
 

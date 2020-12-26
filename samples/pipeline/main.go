@@ -16,6 +16,7 @@ import (
 func main() {
 
 	var httpPipe, amqpPipe *pipeline.Pipeline
+	stopCtx, _ := context.WithTimeout(context.Background(), time.Second*10)
 
 	// Close connection and session in the end
 	defer func() {
@@ -38,7 +39,7 @@ func main() {
 		httpRcvHandler := impl.NewSdkReceiver(httpProtocol, httpProtocol)
 
 		httpPb := &pipeline.PipelineBuilder{}
-		httpPb.Then(elements.CreateInbound(httpRcvHandler, context.Background(), "Inbound")).
+		httpPb.Then(elements.CreateInbound(httpRcvHandler, httpRcvHandler, context.Background(), "Inbound")).
 			Then(elements.Process(func() (pipeline.Processor, error) {
 				return &impl.EventEnricher{
 					Name:  "step1",
@@ -52,13 +53,14 @@ func main() {
 			}, "Sender"))
 		httpPipe, httpErr = httpPb.Build()
 		if httpErr == nil {
+			defer httpPipe.Stop(stopCtx)
 			httpErr = httpPipe.Start()
 		}
 	}
 
 	if amqpErr == nil {
 		pb := &pipeline.PipelineBuilder{}
-		pb.Then(elements.CreateInbound(handler, context.Background(), "Inbound")).
+		pb.Then(elements.CreateInbound(handler, handler, context.Background(), "Inbound")).
 			Then(elements.Process(func() (pipeline.Processor, error) {
 				return &impl.EventEnricher{
 					Name:  "step1",
@@ -70,8 +72,11 @@ func main() {
 			Then(elements.Process(func() (pipeline.Processor, error) {
 				return &impl.CeSender{sender}, nil
 			}, "Sender"))
+
 		amqpPipe, amqpErr = pb.Build()
+
 		if amqpErr == nil {
+			defer amqpPipe.Stop(stopCtx)
 			amqpErr = amqpPipe.Start()
 		}
 	}
@@ -82,9 +87,7 @@ func main() {
 		signal.Notify(c, os.Interrupt)
 		<-c
 		close(c)
-		stopCtx, _ := context.WithTimeout(context.Background(), time.Second*10)
-		amqpPipe.Stop(stopCtx)
-		httpPipe.Stop(stopCtx)
+
 	} else {
 		log.Fatalf("Nothing worked!")
 	}

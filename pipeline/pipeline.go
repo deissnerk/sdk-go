@@ -44,7 +44,7 @@ func (p *Pipeline) Start() error {
 // Drain drains the pipeline by shutting off inbound tasks and stopping each step
 // as soon as it contains no more pending tasks
 func (p *Pipeline) Stop(ctx context.Context) {
-	for i := len(p.reverseElements); i >= 0; i-- {
+	for i := len(p.reverseElements)-1; i >= 0; i-- {
 		p.reverseElements[i].Stop(ctx)
 	}
 }

@@ -82,9 +82,17 @@ func SetupAMQPLink() (*AMQPReceiveHandler, error) {
 }
 
 func TearDownAMQP(ctx context.Context) {
-	handler.receiver.Close(ctx)
-	session.Close(ctx)
-	client.Close()
+	if handler != nil  {
+		if handler.receiver != nil{
+			handler.receiver.Close(ctx)
+		}
+	}
+	if session != nil {
+		session.Close(ctx)
+	}
+	if client != nil {
+		client.Close()
+	}
 }
 
 type SdkReceiver struct {

@@ -16,6 +16,7 @@ type Task struct {
 	mr binding.MessageMetadataReader
 	msg binding.Message
 	cancel	context.CancelFunc
+	result TaskResult
 }
 
 func (t *Task) Context() context.Context{
@@ -45,6 +46,11 @@ func (t *Task) ReadBinary(ctx context.Context, writer binding.BinaryWriter) erro
 // An alternative implementation of Task with different performance trade-offs could be added later
 func (t *Task) Finish(err error) error {
 	return t.msg.Finish(err)
+}
+
+func (t *Task) FinishWithResult(err error, result interface{}) error {
+
+	return nil
 }
 
 func (t *Task) GetAttribute(attributeKind spec.Kind) (spec.Attribute, interface{}) {

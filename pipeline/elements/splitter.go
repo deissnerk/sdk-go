@@ -181,6 +181,7 @@ func (st *SplitterState) UpdateTask(sMsg *pipeline.StatusMessage) bool {
 
 	if tStat.j.IsFinished(tStat.tc) {
 		joinStat := tStat.j.Join(tStat.tc)
+
 		if st.nextStep != nil && protocol.IsACK(joinStat.Result.Error) {
 			// If there is a next step, push the main task to it and send the result as a status update
 			return st.sw.RemoveTask(tKey.key,func(){

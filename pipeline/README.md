@@ -22,7 +22,7 @@ contains the event that is processed, a context object, and a list of changes
 preceding processors have already added. For the event the original
 `binding.Message` is used to allow highly optimized flows.
 
-### Processors
+### Processors (Description OUTDATED!)
 
 A processor takes a `Task` as input and returns a `ProcessorOutput`:
 

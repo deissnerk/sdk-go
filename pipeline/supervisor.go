@@ -6,7 +6,7 @@ import (
 
 type Supervisor struct {
 	state   SupervisorState
-	id      ElementId
+//	id      ElementId
 	q       chan *TaskContainer
 	status  chan *StatusMessage
 	stopped chan struct{}
@@ -27,7 +27,9 @@ func (s *Supervisor) Push(tc *TaskContainer) {
 	case s.q <- tc:
 		return
 	case <-tc.Task.Context().Done():
-		tc.SendCancelledUpdate()
+
+		tc.sendCancelledUpdate()
+
 	}
 }
 
